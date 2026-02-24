@@ -3,11 +3,10 @@ import 'package:flutter/material.dart';
 // This is the "Public" part of the widget
 class DonePage extends StatefulWidget {
   @override
-  _DonePage createState() => _DonePage(); // Fixed: must be 'createState'
+  _DonePage createState() => _DonePage(); 
 }
 
-class _DonePage extends State<DonePage> { // Fixed: must extend State<HomePage>
-  
+class _DonePage extends State<DonePage> { 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
