@@ -3,10 +3,12 @@ plugins {
     id("kotlin-android")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
+    // Only one line needed here for Google Services
+    id("com.google.gms.google-services")
 }
 
 android {
-    namespace = "com.example.my_app"
+    namespace = "com.example.track_your_progress"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -20,12 +22,11 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
         applicationId = "com.example.my_app"
-        // You can update the following values to match your application needs.
-        // For more information, see: https://flutter.dev/to/review-gradle-config.
-        minSdk = flutter.minSdkVersion
-        targetSdk = flutter.targetSdkVersion
+        // CRITICAL: Firebase requires at least 21 or 23. 
+        // If it's too low, the app won't start.
+        minSdk = 23 
+        targetSdk = flutter.targetSdk
         versionCode = flutter.versionCode
         versionName = flutter.versionName
     }
