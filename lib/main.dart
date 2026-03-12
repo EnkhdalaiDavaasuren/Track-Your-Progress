@@ -7,14 +7,13 @@ import 'ui/screens/3_done/done_page.dart';
 import 'ui/screens/4_settings/settings_page.dart';
 
 void main() async {
-  WidgetsFlutterBinding.ensureInitialized(); // Required for Local Storage
-  
-  final trackManager = TrackManager();
-  await trackManager.init(); // Load your data from the phone immediately
+  WidgetsFlutterBinding.ensureInitialized();
+  final manager = TrackManager();
+  await manager.init(); // Load Database
 
   runApp(
     ChangeNotifierProvider(
-      create: (context) => trackManager,
+      create: (context) => manager,
       child: const MyApp(),
     ),
   );

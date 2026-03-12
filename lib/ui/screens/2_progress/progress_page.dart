@@ -1,24 +1,33 @@
 import 'package:flutter/material.dart';
+import 'package:my_app/models/track_model.dart';
+import 'package:provider/provider.dart';
+import 'package:my_app/services/track_manager.dart';
 
 class ProgressPage extends StatelessWidget {
   const ProgressPage({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final manager = Provider.of<TrackManager>(context);
+    final tracks = manager.ongoingTracks;
+
     return Padding(
       padding: const EdgeInsets.all(16.0),
       child: Column(
         children: [
-          _buildTrackCard("Exercise (In process)", context),
-          _buildTrackCard("Gym (Not Set)", context),
-          const Spacer(),
+          Expanded(
+            child: ListView.builder(
+              itemCount: tracks.length,
+              itemBuilder: (context, index) => _buildTrackCard(tracks[index], context),
+            ),
+          ),
           const Text("You may add up to 10 tracks", style: TextStyle(color: Colors.grey)),
         ],
       ),
     );
   }
 
-  Widget _buildTrackCard(String title, BuildContext context) {
+  Widget _buildTrackCard(Track track, BuildContext context) {
     return Container(
       margin: const EdgeInsets.only(bottom: 15),
       padding: const EdgeInsets.all(12),
@@ -29,16 +38,18 @@ class ProgressPage extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(title),
-              const Icon(Icons.edit_outlined, size: 20),
+              Text("${track.name} (${track.startDate == null ? 'Not Set' : 'In process'})"),
+              IconButton(icon: const Icon(Icons.delete_outline), onPressed: () {
+                Provider.of<TrackManager>(context, listen: false).deleteTrack(track.id);
+              }),
             ],
           ),
-          const SizedBox(height: 10),
           Align(
             alignment: Alignment.centerRight,
             child: OutlinedButton(
-              onPressed: () {}, // Navigate to detail page later
-              style: OutlinedButton.styleFrom(side: const BorderSide(color: Colors.black)),
+              onPressed: () {
+                // Navigator.push to Detail Page
+              },
               child: const Text("View", style: TextStyle(color: Colors.black)),
             ),
           )

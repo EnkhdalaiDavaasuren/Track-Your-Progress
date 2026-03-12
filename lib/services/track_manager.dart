@@ -1,49 +1,59 @@
 import 'package:flutter/material.dart';
+import 'package:uuid/uuid.dart'; // Add uuid: ^4.0.0 to pubspec.yaml
+import '../models/track_model.dart';
 import 'storage_service.dart';
 
 class TrackManager extends ChangeNotifier {
   final StorageService _storage = StorageService();
-  List<Map<String, dynamic>> _tracks = [];
+  List<Track> _tracks = [];
 
-  List<Map<String, dynamic>> get tracks => _tracks;
+  List<Track> get dashboardTracks => _tracks.take(3).toList();
+  List<Track> get ongoingTracks => _tracks.where((t) => !t.isExpired).toList();
+  List<Track> get expiredTracks => _tracks.where((t) => t.isExpired).toList();
 
-  // Initialize: Load data when the app starts
+  // Load from Disk on Startup
   Future<void> init() async {
-    _tracks = await _storage.loadTracks();
+    final rawData = await _storage.loadTracks();
+    _tracks = rawData.map((item) => Track.fromJson(item)).toList();
     notifyListeners();
   }
 
-  // Logic: Add a new track and save it
-  void addTrack(String name, int totalDays) async {
-    _tracks.add({
-      'name': name,
-      'status': 'In process',
-      'days_completed': [], // List of days (e.g. 1, 2, 5)
-      'total_days': totalDays,
-    });
-    
+  void addTrack(String name) async {
+    final newTrack = Track(
+      id: const Uuid().v4(),
+      name: name,
+      dailyProgress: {},
+    );
+    _tracks.insert(0, newTrack); // Add to top as per your plan
     notifyListeners();
-    await _storage.saveTracks(_tracks); // Save to local storage
+    await _save();
   }
 
-  // Logic: Toggle a day on/off
-  void toggleDay(int trackIndex, int day) async {
-    List<dynamic> completed = _tracks[trackIndex]['days_completed'];
+  void deleteTrack(String id) async {
+    _tracks.removeWhere((t) => t.id == id);
+    notifyListeners();
+    await _save();
+  }
+
+  void setSchedule(String id, DateTime start, DateTime end) async {
+    var index = _tracks.indexWhere((t) => t.id == id);
+    if (index == -1 || end.year - start.year > 10) return;
+
+    _tracks[index].startDate = start;
+    _tracks[index].endDate = end;
     
-    if (completed.contains(day)) {
-      completed.remove(day);
-    } else {
-      completed.add(day);
+    _tracks[index].dailyProgress.clear();
+    int daysInRange = end.difference(start).inDays;
+    for (int i = 0; i <= daysInRange; i++) {
+      String dateKey = start.add(Duration(days: i)).toString().split(' ')[0];
+      _tracks[index].dailyProgress[dateKey] = DayStatus.notSet;
     }
-
+    
     notifyListeners();
-    await _storage.saveTracks(_tracks);
+    await _save();
   }
-  
-  // Logic: Update Status (For the "Done" page logic)
-  void setStatus(int index, String status) async {
-    _tracks[index]['status'] = status;
-    notifyListeners();
-    await _storage.saveTracks(_tracks);
+
+  Future<void> _save() async {
+    await _storage.saveTracks(_tracks.map((t) => t.toJson()).toList());
   }
 }
