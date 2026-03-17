@@ -3,11 +3,12 @@ plugins {
     id("kotlin-android")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
-    // Only one line needed here for Google Services
+    // This connects the google-services.json to your app
     id("com.google.gms.google-services")
 }
 
 android {
+    // 1. Fixed Namespace (Must match your project structure)
     namespace = "com.example.track_your_progress"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
@@ -22,19 +23,18 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.example.my_app"
-        // CRITICAL: Firebase requires at least 21 or 23. 
-        // If it's too low, the app won't start.
+        applicationId = "com.example.track_your_progress"
+        
         minSdk = 23 
-        targetSdk = flutter.targetSdk
+        // 3. FIXED: The property name is targetSdkVersion, not targetSdk
+        targetSdk = flutter.targetSdkVersion
+        
         versionCode = flutter.versionCode
         versionName = flutter.versionName
     }
 
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
             signingConfig = signingConfigs.getByName("debug")
         }
     }

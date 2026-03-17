@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:uuid/uuid.dart'; // Add uuid: ^4.0.0 to pubspec.yaml
+import 'package:uuid/uuid.dart'; 
 import '../models/track_model.dart';
 import 'storage_service.dart';
+import 'firebase_service.dart';
 
 class TrackManager extends ChangeNotifier {
+  final FirebaseService _firebase = FirebaseService();
   final StorageService _storage = StorageService();
   List<Track> _tracks = [];
 
@@ -14,28 +16,37 @@ class TrackManager extends ChangeNotifier {
   // Load from Disk on Startup
   Future<void> init() async {
     final rawData = await _storage.loadTracks();
+    // FIXED: Changed fromJSON to fromJson to match standard naming
     _tracks = rawData.map((item) => Track.fromJson(item)).toList();
     notifyListeners();
   }
 
-  void addTrack(String name) async {
+  // CREATE
+  Future<void> addTrack(String name) async {
     final newTrack = Track(
-      id: const Uuid().v4(),
-      name: name,
-      dailyProgress: {},
+      id: const Uuid().v4(), 
+      name: name, 
+      dailyProgress: {}
     );
-    _tracks.insert(0, newTrack); // Add to top as per your plan
+    
+    _tracks.insert(0, newTrack);
     notifyListeners();
-    await _save();
+    
+    await _saveLocal();
+    await _firebase.syncTrack(newTrack);
   }
 
-  void deleteTrack(String id) async {
+  // DELETE
+  Future<void> deleteTrack(String id) async {
     _tracks.removeWhere((t) => t.id == id);
     notifyListeners();
-    await _save();
+    
+    await _saveLocal();
+    await _firebase.removeTrack(id); 
   }
 
-  void setSchedule(String id, DateTime start, DateTime end) async {
+  // UPDATE SCHEDULE
+  Future<void> setSchedule(String id, DateTime start, DateTime end) async {
     var index = _tracks.indexWhere((t) => t.id == id);
     if (index == -1 || end.year - start.year > 10) return;
 
@@ -44,16 +55,32 @@ class TrackManager extends ChangeNotifier {
     
     _tracks[index].dailyProgress.clear();
     int daysInRange = end.difference(start).inDays;
+    
     for (int i = 0; i <= daysInRange; i++) {
       String dateKey = start.add(Duration(days: i)).toString().split(' ')[0];
       _tracks[index].dailyProgress[dateKey] = DayStatus.notSet;
     }
     
     notifyListeners();
-    await _save();
+    await _saveLocal();
+    await _firebase.syncTrack(_tracks[index]);
   }
 
-  Future<void> _save() async {
+  // UPDATE DAY STATUS
+  Future<void> updateDayStatus(String trackId, String dateKey, DayStatus status) async {
+    var index = _tracks.indexWhere((t) => t.id == trackId);
+    if (index == -1) return;
+
+    _tracks[index].dailyProgress[dateKey] = status;
+    notifyListeners();
+    
+    await _saveLocal();
+    await _firebase.syncTrack(_tracks[index]);
+  }
+
+  // Helper to save to SharedPreferences
+  Future<void> _saveLocal() async {
+    // Ensure this matches the method name in your Track model
     await _storage.saveTracks(_tracks.map((t) => t.toJson()).toList());
   }
 }

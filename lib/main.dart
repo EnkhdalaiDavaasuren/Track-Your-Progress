@@ -1,13 +1,25 @@
 import 'package:flutter/material.dart';
-import 'package:my_app/services/track_manager.dart';
 import 'package:provider/provider.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'firebase_options.dart';
+
+// Services & UI
+import 'services/track_manager.dart';
 import 'ui/screens/1_home/home_page.dart';
 import 'ui/screens/2_progress/progress_page.dart';
 import 'ui/screens/3_done/done_page.dart';
 import 'ui/screens/4_settings/settings_page.dart';
+import 'ui/screens/login_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  
+  // 1. Initialize Firebase
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+
   final manager = TrackManager();
   await manager.init(); // Load Database
 
@@ -26,15 +38,36 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
+      title: 'Track Your Progress',
       theme: ThemeData(
         scaffoldBackgroundColor: Colors.white,
+        // Using a clean font for that modern "Good" look
+        fontFamily: 'Roboto', 
         appBarTheme: const AppBarTheme(
           backgroundColor: Colors.white,
           foregroundColor: Colors.black,
           elevation: 0,
+          centerTitle: true,
+          titleTextStyle: TextStyle(
+            color: Colors.black, 
+            fontSize: 22, 
+            fontWeight: FontWeight.w400
+          ),
         ),
       ),
-      home: const MainScreen(),
+      // Auth Flow: Automatic switch between Login and MainScreen
+      home: StreamBuilder<User?>(
+        stream: FirebaseAuth.instance.authStateChanges(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Scaffold(body: Center(child: CircularProgressIndicator()));
+          }
+          if (snapshot.hasData) {
+            return const MainScreen();
+          }
+          return const LoginPage(); 
+        },
+      ),
     );
   }
 }
@@ -48,24 +81,61 @@ class MainScreen extends StatefulWidget {
 
 class _MainScreenState extends State<MainScreen> {
   int _selectedIndex = 0;
+  final TextEditingController _nameController = TextEditingController();
 
   final List<Widget> _pages = [
     const HomePage(),
     const ProgressPage(),
-    const Center(child: Text("Add Track Logic Here")),
+    const Center(child: Text("Add Logic")), // Placeholder for Index 2
     const DonePage(),
     const SettingsPage(),
   ];
 
+  // Replicating the "Good" Screenshot Dialog (Image 2)
   void _showAddTrackDialog() {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text("Add New Track"),
-        content: const TextField(decoration: InputDecoration(hintText: "Track Name")),
+        backgroundColor: const Color(0xFFF3EDF7), // Light purple-grey from screenshot
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+        title: const Text(
+          "New Track", 
+          style: TextStyle(fontSize: 24, fontWeight: FontWeight.w400)
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: _nameController,
+              autofocus: true,
+              decoration: const InputDecoration(
+                // The simple underline style from Image 2
+                enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: Colors.grey)),
+                focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: Colors.deepPurple, width: 2)),
+              ),
+            ),
+          ],
+        ),
+        actionsPadding: const EdgeInsets.only(right: 20, bottom: 10),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text("Cancel")),
-          ElevatedButton(onPressed: () => Navigator.pop(context), child: const Text("Add")),
+          TextButton(
+            onPressed: () {
+              _nameController.clear();
+              Navigator.pop(context);
+            }, 
+            child: const Text("Cancel", style: TextStyle(color: Color(0xFF6750A4)))
+          ),
+          TextButton(
+            onPressed: () {
+              if (_nameController.text.isNotEmpty) {
+                context.read<TrackManager>().addTrack(_nameController.text);
+                _nameController.clear();
+                Navigator.pop(context);
+                setState(() => _selectedIndex = 1); // Move to Progress Page
+              }
+            },
+            child: const Text("Add", style: TextStyle(color: Color(0xFF6750A4), fontWeight: FontWeight.bold)),
+          ),
         ],
       ),
     );
@@ -75,15 +145,23 @@ class _MainScreenState extends State<MainScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: SafeArea(child: _pages[_selectedIndex]),
+      
+      // Fixed Navigation Bar to match Image 5 exactly
       bottomNavigationBar: Container(
-        decoration: const BoxDecoration(border: Border(top: BorderSide(color: Colors.black, width: 1))),
+        decoration: const BoxDecoration(
+          border: Border(top: BorderSide(color: Colors.black12, width: 1))
+        ),
         child: BottomNavigationBar(
           type: BottomNavigationBarType.fixed,
           currentIndex: _selectedIndex,
-          selectedItemColor: Colors.blue,
-          unselectedItemColor: Colors.black,
-          showSelectedLabels: false,
-          showUnselectedLabels: false,
+          selectedItemColor: const Color(0xFF6750A4), // The deep purple/blue from screenshot
+          unselectedItemColor: Colors.black54,
+          showSelectedLabels: true,
+          showUnselectedLabels: true,
+          selectedFontSize: 12,
+          unselectedFontSize: 12,
+          backgroundColor: Colors.white,
+          elevation: 0,
           onTap: (index) {
             if (index == 2) {
               _showAddTrackDialog();
@@ -92,10 +170,14 @@ class _MainScreenState extends State<MainScreen> {
             }
           },
           items: const [
-            BottomNavigationBarItem(icon: Icon(Icons.home_outlined), label: 'Home'),
-            BottomNavigationBarItem(icon: Icon(Icons.article_outlined), label: 'Progress'),
-            BottomNavigationBarItem(icon: Icon(Icons.add), label: 'Add'),
-            BottomNavigationBarItem(icon: Icon(Icons.check_box_outlined), label: 'Done'),
+            BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
+            BottomNavigationBarItem(icon: Icon(Icons.list_alt), label: 'Progress'),
+            // The solid black Plus icon from your screenshot
+            BottomNavigationBarItem(
+              icon: Icon(Icons.add_circle, size: 45, color: Colors.black), 
+              label: ''
+            ),
+            BottomNavigationBarItem(icon: Icon(Icons.check_circle), label: 'Done'),
             BottomNavigationBarItem(icon: Icon(Icons.settings), label: 'Settings'),
           ],
         ),

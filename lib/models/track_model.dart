@@ -1,4 +1,3 @@
-
 enum DayStatus { notSet, no, yes }
 
 class Track {
@@ -27,27 +26,31 @@ class Track {
     return !dailyProgress.values.contains(DayStatus.notSet);
   }
 
-  // Convert Track to JSON for Storage
-  Map<String, dynamic> toJson() => {
-    'id': id,
-    'name': name,
-    'checkText': checkText,
-    'startDate': startDate?.toIso8601String(),
-    'endDate': endDate?.toIso8601String(),
-    'reminderFrequency': reminderFrequency,
-    'dailyProgress': dailyProgress.map((key, value) => MapEntry(key, value.index)),
-  };
+  // --- DATABASE HELPERS ---
 
-  // Create Track from JSON
-  factory Track.fromJson(Map<String, dynamic> json) {
+  // Converts Track to Map (to save to Firebase or Local Storage)
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'name': name,
+      'checkText': checkText,
+      'startDate': startDate?.toIso8601String(),
+      'endDate': endDate?.toIso8601String(),
+      'reminderFrequency': reminderFrequency,
+      'dailyProgress': dailyProgress.map((key, value) => MapEntry(key, value.index)),
+    };
+  }
+
+  // Creates Track from Map (to load from Firebase or Local Storage)
+  factory Track.fromJson(Map<String, dynamic> map) {
     return Track(
-      id: json['id'],
-      name: json['name'],
-      checkText: json['checkText'] ?? "",
-      startDate: json['startDate'] != null ? DateTime.parse(json['startDate']) : null,
-      endDate: json['endDate'] != null ? DateTime.parse(json['endDate']) : null,
-      reminderFrequency: json['reminderFrequency'] ?? "everyday",
-      dailyProgress: (json['dailyProgress'] as Map<String, dynamic>).map(
+      id: map['id'],
+      name: map['name'],
+      checkText: map['checkText'] ?? "",
+      startDate: map['startDate'] != null ? DateTime.parse(map['startDate']) : null,
+      endDate: map['endDate'] != null ? DateTime.parse(map['endDate']) : null,
+      reminderFrequency: map['reminderFrequency'] ?? "everyday", // Added this fix
+      dailyProgress: (map['dailyProgress'] as Map<String, dynamic>).map(
         (key, value) => MapEntry(key, DayStatus.values[value as int]),
       ),
     );
