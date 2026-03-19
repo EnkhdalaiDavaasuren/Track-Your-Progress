@@ -15,6 +15,20 @@ class AuthService {
       return e.message; // Return error message to show in UI
     }
   }
+  
+  // Inside your AuthService class
+  Future<String?> resetPassword(String email) async {
+    try {
+    if (email.isEmpty) return "Please enter your email first.";
+    
+    await _auth.sendPasswordResetEmail(email: email);
+    return null; // Success - email sent
+    } on FirebaseAuthException catch (e) {
+      return e.message; // Return the error (e.g., "User not found")
+    } catch (e) {
+      return "An unexpected error occurred.";
+    }
+  }
 
   // SIGN UP
   Future<String?> signUp(String email, String password) async {

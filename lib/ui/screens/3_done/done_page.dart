@@ -29,10 +29,12 @@ class DonePage extends StatelessWidget {
             alignment: Alignment.centerRight,
             child: OutlinedButton(
               onPressed: () {},
-              style: OutlinedButton.styleFrom(side: const BorderSide(color: Colors.black)),
+              style: OutlinedButton.styleFrom(
+                side: const BorderSide(color: Colors.black),
+              ),
               child: const Text("Check", style: TextStyle(color: Colors.black)),
             ),
-          )
+          ),
         ],
       ),
     );

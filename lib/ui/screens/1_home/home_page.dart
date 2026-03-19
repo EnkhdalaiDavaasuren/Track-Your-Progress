@@ -15,7 +15,10 @@ class HomePage extends StatelessWidget {
             children: [
               const Icon(Icons.account_circle_outlined, size: 50),
               const SizedBox(width: 10),
-              const Text("Username", style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+              const Text(
+                "Username",
+                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+              ),
             ],
           ),
           const SizedBox(height: 30),
@@ -23,16 +26,23 @@ class HomePage extends StatelessWidget {
           const SizedBox(height: 10),
           // Progress Table
           Container(
-            decoration: BoxDecoration(border: Border.all(color: Colors.black, width: 2)),
+            decoration: BoxDecoration(
+              border: Border.all(color: Colors.black, width: 2),
+            ),
             child: Column(
-              children: List.generate(4, (index) => Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(15),
-                decoration: BoxDecoration(
-                  border: index < 3 ? const Border(bottom: BorderSide(color: Colors.black)) : null,
+              children: List.generate(
+                4,
+                (index) => Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(15),
+                  decoration: BoxDecoration(
+                    border: index < 3
+                        ? const Border(bottom: BorderSide(color: Colors.black))
+                        : null,
+                  ),
+                  child: Text(index == 0 ? "Exercise" : ""),
                 ),
-                child: Text(index == 0 ? "Exercise" : ""),
-              )),
+              ),
             ),
           ),
         ],

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart'; // Import this for logout logic
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:my_app/services/track_manager.dart';
+import 'package:provider/provider.dart'; // Import this for logout logic
 
 class SettingsPage extends StatelessWidget {
   const SettingsPage({super.key});
@@ -41,17 +43,23 @@ class SettingsPage extends StatelessWidget {
     );
   }
 
-  Widget _settingRow(BuildContext context, String title, {bool isLast = false, bool isLogout = false}) {
+  Widget _settingRow(
+    BuildContext context,
+    String title, {
+    bool isLast = false,
+    bool isLogout = false,
+  }) {
     return GestureDetector(
       onTap: () async {
         if (isLogout) {
           // LOGOUT LOGIC
+          Provider.of<TrackManager>(context, listen: false).clearData();
           await FirebaseAuth.instance.signOut();
         } else {
           // Placeholder for other settings
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text("$title clicked")),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text("$title clicked")));
         }
       },
       child: Container(
@@ -59,13 +67,17 @@ class SettingsPage extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: 15, horizontal: 10),
         decoration: BoxDecoration(
           color: Colors.white, // Ensures the whole row is tappable
-          border: isLast ? null : const Border(bottom: BorderSide(color: Colors.black)),
+          border: isLast
+              ? null
+              : const Border(bottom: BorderSide(color: Colors.black)),
         ),
         child: Text(
-          title, 
+          title,
           textAlign: isLast ? TextAlign.center : TextAlign.left,
           style: TextStyle(
-            color: isLogout ? Colors.red : Colors.black, // Make logout red for safety
+            color: isLogout
+                ? Colors.red
+                : Colors.black, // Make logout red for safety
             fontWeight: isLogout ? FontWeight.bold : FontWeight.normal,
           ),
         ),

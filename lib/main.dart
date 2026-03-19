@@ -83,6 +83,17 @@ class _MainScreenState extends State<MainScreen> {
   int _selectedIndex = 0;
   final TextEditingController _nameController = TextEditingController();
 
+
+  @override
+  void initState() {
+    super.initState();
+    // This runs as soon as the MainScreen is created.
+    // We use Future.microtask to ensure the context is ready before calling the manager.
+    Future.microtask(() {
+      context.read<TrackManager>().loadFromFirebase();
+    });
+  }
+
   final List<Widget> _pages = [
     const HomePage(),
     const ProgressPage(),

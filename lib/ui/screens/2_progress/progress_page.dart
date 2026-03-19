@@ -18,10 +18,14 @@ class ProgressPage extends StatelessWidget {
           Expanded(
             child: ListView.builder(
               itemCount: tracks.length,
-              itemBuilder: (context, index) => _buildTrackCard(tracks[index], context),
+              itemBuilder: (context, index) =>
+                  _buildTrackCard(tracks[index], context),
             ),
           ),
-          const Text("You may add up to 10 tracks", style: TextStyle(color: Colors.grey)),
+          const Text(
+            "You may add up to 10 tracks",
+            style: TextStyle(color: Colors.grey),
+          ),
         ],
       ),
     );
@@ -38,10 +42,18 @@ class ProgressPage extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text("${track.name} (${track.startDate == null ? 'Not Set' : 'In process'})"),
-              IconButton(icon: const Icon(Icons.delete_outline), onPressed: () {
-                Provider.of<TrackManager>(context, listen: false).deleteTrack(track.id);
-              }),
+              Text(
+                "${track.name} (${track.startDate == null ? 'Not Set' : 'In process'})",
+              ),
+              IconButton(
+                icon: const Icon(Icons.delete_outline),
+                onPressed: () {
+                  Provider.of<TrackManager>(
+                    context,
+                    listen: false,
+                  ).deleteTrack(track.id);
+                },
+              ),
             ],
           ),
           Align(
@@ -52,7 +64,7 @@ class ProgressPage extends StatelessWidget {
               },
               child: const Text("View", style: TextStyle(color: Colors.black)),
             ),
-          )
+          ),
         ],
       ),
     );
