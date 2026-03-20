@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:my_app/models/track_model.dart';
 import 'package:provider/provider.dart';
-import 'package:my_app/services/track_manager.dart';
+import '../../../services/track_manager.dart';
+import '../../../models/track_model.dart';
+import '../setup_range_page.dart';
 
 class ProgressPage extends StatelessWidget {
   const ProgressPage({super.key});
@@ -11,61 +12,56 @@ class ProgressPage extends StatelessWidget {
     final manager = Provider.of<TrackManager>(context);
     final tracks = manager.ongoingTracks;
 
-    return Padding(
-      padding: const EdgeInsets.all(16.0),
-      child: Column(
-        children: [
-          Expanded(
-            child: ListView.builder(
-              itemCount: tracks.length,
-              itemBuilder: (context, index) =>
-                  _buildTrackCard(tracks[index], context),
-            ),
-          ),
-          const Text(
-            "You may add up to 10 tracks",
-            style: TextStyle(color: Colors.grey),
-          ),
-        ],
-      ),
-    );
-  }
+    return Scaffold(
+      appBar: AppBar(title: const Text("Progress"), centerTitle: true),
+      body: ListView.builder(
+        itemCount: tracks.length,
+        itemBuilder: (context, index) {
+          final track = tracks[index];
+          bool isNotSet = track.startDate == null;
 
-  Widget _buildTrackCard(Track track, BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 15),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(border: Border.all(color: Colors.black)),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                "${track.name} (${track.startDate == null ? 'Not Set' : 'In process'})",
-              ),
-              IconButton(
-                icon: const Icon(Icons.delete_outline),
-                onPressed: () {
-                  Provider.of<TrackManager>(
-                    context,
-                    listen: false,
-                  ).deleteTrack(track.id);
-                },
-              ),
-            ],
-          ),
-          Align(
-            alignment: Alignment.centerRight,
-            child: OutlinedButton(
-              onPressed: () {
-                // Navigator.push to Detail Page
-              },
-              child: const Text("View", style: TextStyle(color: Colors.black)),
+          return Container(
+            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(border: Border.all(color: Colors.black)),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      "${track.name} ${isNotSet ? '(Not Set)' : '(In process)'}",
+                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.delete_outline, color: Colors.red),
+                      onPressed: () => context.read<TrackManager>().deleteTrack(track.id),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: OutlinedButton(
+                    onPressed: () {
+                      if (isNotSet) {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (context) => SetupRangePage(track: track)),
+                        );
+                      } else {
+                        // This will be your Calendar/Circle Grid page
+                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Detail View Coming Soon")));
+                      }
+                    },
+                    child: Text(isNotSet ? "Set" : "View", style: const TextStyle(color: Colors.black)),
+                  ),
+                )
+              ],
             ),
-          ),
-        ],
+          );
+        },
       ),
     );
   }
