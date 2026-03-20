@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../services/track_manager.dart';
-import '../../../models/track_model.dart';
 import '../setup_range_page.dart';
 
 class ProgressPage extends StatelessWidget {
