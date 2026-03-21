@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../../models/track_model.dart';
 import '../../../services/track_manager.dart';
 import '../setup_range_page.dart';
+import '../track_detail_page.dart'; // <--- Ensure this path is correct
 
 class ProgressPage extends StatelessWidget {
   const ProgressPage({super.key});
@@ -22,7 +24,10 @@ class ProgressPage extends StatelessWidget {
           return Container(
             margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(border: Border.all(color: Colors.black)),
+            decoration: BoxDecoration(
+              border: Border.all(color: Colors.black, width: 1.5),
+              color: Colors.white,
+            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -35,7 +40,7 @@ class ProgressPage extends StatelessWidget {
                     ),
                     IconButton(
                       icon: const Icon(Icons.delete_outline, color: Colors.red),
-                      onPressed: () => context.read<TrackManager>().deleteTrack(track.id),
+                      onPressed: () => manager.deleteTrack(track.id),
                     ),
                   ],
                 ),
@@ -44,14 +49,16 @@ class ProgressPage extends StatelessWidget {
                   alignment: Alignment.centerRight,
                   child: OutlinedButton(
                     onPressed: () {
-                      if (isNotSet) {
+                      if (track.startDate == null) {
                         Navigator.push(
                           context,
                           MaterialPageRoute(builder: (context) => SetupRangePage(track: track)),
                         );
                       } else {
-                        // This will be your Calendar/Circle Grid page
-                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Detail View Coming Soon")));
+                        Navigator.push(
+                          context, 
+                          MaterialPageRoute(builder: (context) => TrackDetailPage(track: track)),
+                        );
                       }
                     },
                     child: Text(isNotSet ? "Set" : "View", style: const TextStyle(color: Colors.black)),
