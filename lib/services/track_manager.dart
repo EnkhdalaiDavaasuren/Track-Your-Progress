@@ -16,7 +16,7 @@ class TrackManager extends ChangeNotifier {
   List<Track> get allTracks => _tracks; 
 
   List<Track> get ongoingTracks => _tracks.where((t) => !t.isExpired).toList();
-  List<Track> get expiredTracks => _tracks.where((t) => t.isExpired).toList();
+  List<Track> get expiredTracks => _tracks.where((t) => t.isExpired).take(10).toList();
   List<Track> get dashboardTracks => _tracks.where((t) => !t.isExpired).take(3).toList();
 
   // Load Local Database on Startup

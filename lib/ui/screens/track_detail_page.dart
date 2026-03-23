@@ -172,6 +172,17 @@ class _TrackDetailPageState extends State<TrackDetailPage> {
   // --- DIALOGS ---
 
   void _showProgressDialog(BuildContext context, Track track, String dateKey) {
+    // NEW LOGIC: If track is expired, check if status is already set
+    DayStatus currentStatus = track.dailyProgress[dateKey] ?? DayStatus.notSet;
+    
+    if (track.isExpired && currentStatus != DayStatus.notSet) {
+      // User cannot touch already checked days in the Done Page
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Finished days cannot be changed."))
+      );
+      return;
+    }
+
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(

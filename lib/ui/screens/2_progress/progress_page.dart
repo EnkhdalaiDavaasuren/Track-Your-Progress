@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart'; // Import this for DateFormat
 import 'package:provider/provider.dart';
 import '../../../models/track_model.dart';
 import '../../../services/track_manager.dart';
 import '../setup_range_page.dart';
-import '../track_detail_page.dart'; // <--- Ensure this path is correct
+import '../track_detail_page.dart';
 
 class ProgressPage extends StatelessWidget {
   const ProgressPage({super.key});
@@ -34,9 +35,11 @@ class ProgressPage extends StatelessWidget {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
-                      "${track.name} ${isNotSet ? '(Not Set)' : '(In process)'}",
-                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    Expanded(
+                      child: Text(
+                        "${track.name} ${isNotSet ? '(Not Set)' : '(In process)'}",
+                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      ),
                     ),
                     IconButton(
                       icon: const Icon(Icons.delete_outline, color: Colors.red),
@@ -44,7 +47,18 @@ class ProgressPage extends StatelessWidget {
                     ),
                   ],
                 ),
-                const SizedBox(height: 10),
+                
+                // --- ADDED: THE DATE RANGE DISPLAY ---
+                if (!isNotSet)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4.0, bottom: 8.0),
+                    child: Text(
+                      "${DateFormat('yyyy/MM/dd').format(track.startDate!)} - ${DateFormat('yyyy/MM/dd').format(track.endDate!)}",
+                      style: TextStyle(color: Colors.grey[700], fontSize: 14),
+                    ),
+                  ),
+                
+                const SizedBox(height: 5),
                 Align(
                   alignment: Alignment.centerRight,
                   child: OutlinedButton(
