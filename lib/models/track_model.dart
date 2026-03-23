@@ -19,6 +19,9 @@ class Track {
     required this.dailyProgress,
   });
 
+  // LOGIC: A track is DONE if time ran out OR if all circles are filled
+  bool get isDone => isExpired || isFullyCompleted;
+
   bool get isExpired => endDate != null && DateTime.now().isAfter(endDate!);
 
   bool get isFullyCompleted {
@@ -26,9 +29,6 @@ class Track {
     return !dailyProgress.values.contains(DayStatus.notSet);
   }
 
-  // --- DATABASE HELPERS ---
-
-  // Converts Track to Map (to save to Firebase or Local Storage)
   Map<String, dynamic> toJson() {
     return {
       'id': id,
@@ -41,7 +41,6 @@ class Track {
     };
   }
 
-  // Creates Track from Map (to load from Firebase or Local Storage)
   factory Track.fromJson(Map<String, dynamic> map) {
     return Track(
       id: map['id'],
@@ -49,7 +48,7 @@ class Track {
       checkText: map['checkText'] ?? "",
       startDate: map['startDate'] != null ? DateTime.parse(map['startDate']) : null,
       endDate: map['endDate'] != null ? DateTime.parse(map['endDate']) : null,
-      reminderFrequency: map['reminderFrequency'] ?? "everyday", // Added this fix
+      reminderFrequency: map['reminderFrequency'] ?? "everyday",
       dailyProgress: (map['dailyProgress'] as Map<String, dynamic>).map(
         (key, value) => MapEntry(key, DayStatus.values[value as int]),
       ),
