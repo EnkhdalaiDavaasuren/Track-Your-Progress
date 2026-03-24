@@ -19,14 +19,14 @@ class AuthService {
   // Inside your AuthService class
   Future<String?> resetPassword(String email) async {
     try {
-    if (email.isEmpty) return "Please enter your email first.";
-    
-    await _auth.sendPasswordResetEmail(email: email);
-    return null; // Success - email sent
+        await _auth.sendPasswordResetEmail(email: email);
+        print("Reset email sent to $email successfully!"); // Check if this prints in VS Code
+        return null; 
     } on FirebaseAuthException catch (e) {
-      return e.message; // Return the error (e.g., "User not found")
+        print("Firebase Auth Error Code: ${e.code}"); // This tells us the REAL reason
+       return e.message;
     } catch (e) {
-      return "An unexpected error occurred.";
+       return "An error occurred.";
     }
   }
 
