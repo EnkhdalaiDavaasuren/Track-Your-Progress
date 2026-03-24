@@ -18,9 +18,13 @@ pluginManagement {
 }
 
 plugins {
-    id("com.android.application") version "8.7.0" apply false // BUMP to 8.7.0
-    id("org.jetbrains.kotlin.android") version "2.1.0" apply false // BUMP to 2.1.0
-    id("com.google.gms.google-services") version "4.4.2" apply false
+    id("dev.flutter.flutter-plugin-loader") version "1.0.0"
+    id("com.android.application") version "8.3.2" apply false
+    id("org.jetbrains.kotlin.android") version "1.9.10" apply false
+    id("com.google.gms.google-services") version "4.3.15" apply false
 }
 
+
+
 include(":app")
+

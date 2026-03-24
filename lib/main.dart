@@ -1,10 +1,15 @@
 import 'package:flutter/material.dart';
-import 'package:my_app/services/notification_service.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'firebase_options.dart';
+
+// Services
 import 'services/track_manager.dart';
+import 'services/theme_manager.dart';
+import 'services/notification_service.dart';
+
+// UI Screens
 import 'ui/screens/1_home/home_page.dart';
 import 'ui/screens/2_progress/progress_page.dart';
 import 'ui/screens/3_done/done_page.dart';
@@ -13,23 +18,72 @@ import 'ui/screens/login_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  
+  // 1. Initialize Firebase & System Services
   await NotificationService.init();
-  final manager = TrackManager();
-  await manager.init();
-  runApp(ChangeNotifierProvider(create: (context) => manager, child: const MyApp()));
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+
+  // 2. Initialize Data Manager
+  final trackManager = TrackManager();
+  await trackManager.init(); // Load from phone memory immediately
+
+  runApp(
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => trackManager),
+        ChangeNotifierProvider(create: (_) => ThemeManager()),
+      ],
+      child: const MyApp(),
+    ),
+  );
 }
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
+
   @override
   Widget build(BuildContext context) {
+    final themeManager = Provider.of<ThemeManager>(context);
+
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(scaffoldBackgroundColor: Colors.white, fontFamily: 'Roboto'),
+      title: 'Track Your Progress',
+      
+      // --- THEME CONFIGURATION ---
+      themeMode: themeManager.isDarkMode ? ThemeMode.dark : ThemeMode.light,
+      
+      theme: ThemeData(
+        useMaterial3: true,
+        brightness: Brightness.light,
+        scaffoldBackgroundColor: Colors.white,
+        cardColor: Colors.white,
+        colorScheme: ColorScheme.light(
+          primary: const Color(0xFF6750A4), // Purple from your screenshot
+          onSurface: Colors.black, // Used for boxy borders
+        ),
+        appBarTheme: const AppBarTheme(backgroundColor: Colors.white, foregroundColor: Colors.black),
+      ),
+
+      darkTheme: ThemeData(
+        useMaterial3: true,
+        brightness: Brightness.dark,
+        scaffoldBackgroundColor: const Color(0xFF121212),
+        cardColor: const Color(0xFF1E1E1E), // Dark grey for cards
+        colorScheme: ColorScheme.dark(
+          primary: const Color(0xFFD0BCFF), // Light purple for dark mode
+          onSurface: Colors.white, // Used for boxy borders
+        ),
+        appBarTheme: const AppBarTheme(backgroundColor: Color(0xFF121212), foregroundColor: Colors.white),
+      ),
+
+      // --- AUTH GATEKEEPER ---
       home: StreamBuilder<User?>(
         stream: FirebaseAuth.instance.authStateChanges(),
         builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Scaffold(body: Center(child: CircularProgressIndicator()));
+          }
+          // If session exists, go to app. If not, go to login.
           if (snapshot.hasData) return const MainScreen();
           return const LoginPage();
         },
@@ -51,92 +105,81 @@ class _MainScreenState extends State<MainScreen> {
   @override
   void initState() {
     super.initState();
+    // Background cloud sync as soon as app opens
     Future.microtask(() => context.read<TrackManager>().loadFromFirebase());
   }
 
+  // --- LOGIC: 10 TRACK LIMIT CHECKS ---
   void _showAddTrackDialog() {
     final manager = context.read<TrackManager>();
 
-    // WARNING 1: Too many ACTIVE tracks (Current Ongoing + Not Set)
-    // We calculate active by looking at anything that isn't 'isDone'
-    int activeCount = manager.allTracks.where((t) => !t.isDone).length;
-
-    if (activeCount >= 10) {
+    // Check 1: Active tracks limit (Ongoing + Not Set)
+    if (manager.ongoingTracks.length >= 10) {
       _showLimitAlert(
         "Active Limit Reached", 
-        "You already have 10 active tracks. Please complete or delete some before creating a new one."
+        "You have 10 ongoing tracks. Please complete or delete some first."
       );
       return;
     }
 
-    // WARNING 2: History is full (Too many total tracks)
-    // If they have 10 completed tracks and 0 active, they still hit the 10-slot limit
-    if (manager.allTracks.length >= 10) {
+    // Check 2: History storage limit (Total slots)
+    if (manager.allTracks.length >= 20) {
       _showLimitAlert(
-        "History Full", 
+        "Storage Full", 
         "Please delete completed tracks from the Done page to add more."
       );
       return;
     }
 
-    // If both checks pass, show the input
     _showActualInputDialog();
   }
 
-  // 2. HELPER: The Alert Dialog (Purple rounded style)
   void _showLimitAlert(String title, String message) {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFFF3EDF7),
+        backgroundColor: Theme.of(context).cardColor,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
         title: Text(title),
         content: Text(message),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text("OK", style: TextStyle(color: Color(0xFF6750A4), fontWeight: FontWeight.bold)),
+            child: const Text("OK", style: TextStyle(fontWeight: FontWeight.bold)),
           ),
         ],
       ),
     );
   }
 
-  // 3. HELPER: The Actual Input Dialog
   void _showActualInputDialog() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFFF3EDF7),
+        backgroundColor: isDark ? const Color(0xFF2C2C2C) : const Color(0xFFF3EDF7),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
-        title: const Text("New Track", style: TextStyle(fontSize: 24, fontWeight: FontWeight.w400)),
+        title: const Text("New Track", style: TextStyle(fontSize: 24)),
         content: TextField(
           controller: _nameController,
           autofocus: true,
           decoration: const InputDecoration(
-            hintText: "Track Name",
+            hintText: "What are you tracking?",
             enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: Colors.grey)),
-            focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: Colors.deepPurple, width: 2)),
           ),
         ),
         actions: [
-          TextButton(
-            onPressed: () {
-              _nameController.clear();
-              Navigator.pop(ctx);
-            }, 
-            child: const Text("Cancel", style: TextStyle(color: Color(0xFF6750A4)))
-          ),
+          TextButton(onPressed: () { _nameController.clear(); Navigator.pop(ctx); }, child: const Text("Cancel")),
           TextButton(
             onPressed: () {
               if (_nameController.text.isNotEmpty) {
                 context.read<TrackManager>().addTrack(_nameController.text);
                 _nameController.clear();
                 Navigator.pop(ctx);
-                setState(() => _selectedIndex = 1); // Go to Progress Page
+                setState(() => _selectedIndex = 1); // Go to Progress Page to see it
               }
             },
-            child: const Text("Add", style: TextStyle(color: Color(0xFF6750A4), fontWeight: FontWeight.bold)),
+            child: const Text("Add", style: TextStyle(fontWeight: FontWeight.bold)),
           ),
         ],
       ),
@@ -145,18 +188,35 @@ class _MainScreenState extends State<MainScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final List<Widget> pages = [const HomePage(), const ProgressPage(), const SizedBox(), const DonePage(), const SettingsPage()];
+    final List<Widget> pages = [
+      const HomePage(), 
+      const ProgressPage(), 
+      const SizedBox(), // Spacer for the center button
+      const DonePage(), 
+      const SettingsPage()
+    ];
+
     return Scaffold(
       body: SafeArea(child: pages[_selectedIndex]),
       bottomNavigationBar: BottomNavigationBar(
-        type: BottomNavigationBarType.fixed, currentIndex: _selectedIndex, selectedItemColor: const Color(0xFF6750A4),
-        onTap: (i) => i == 2 ? _showAddTrackDialog() : setState(() => _selectedIndex = i),
+        type: BottomNavigationBarType.fixed,
+        currentIndex: _selectedIndex,
+        selectedItemColor: Theme.of(context).colorScheme.primary,
+        unselectedItemColor: Colors.grey,
+        onTap: (index) {
+          if (index == 2) {
+            _showAddTrackDialog();
+          } else {
+            setState(() => _selectedIndex = index);
+          }
+        },
         items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
-          BottomNavigationBarItem(icon: Icon(Icons.list_alt), label: 'Progress'),
-          BottomNavigationBarItem(icon: Icon(Icons.add_circle, size: 45, color: Colors.black), label: ''),
-          BottomNavigationBarItem(icon: Icon(Icons.check_circle), label: 'Done'),
-          BottomNavigationBarItem(icon: Icon(Icons.settings), label: 'Settings'),
+          BottomNavigationBarItem(icon: Icon(Icons.home_outlined), label: 'Home'),
+          BottomNavigationBarItem(icon: Icon(Icons.list_alt_outlined), label: 'Progress'),
+          // The Big Black Plus Icon from your screenshot
+          BottomNavigationBarItem(icon: Icon(Icons.add_circle, size: 48, color: Colors.black), label: ''),
+          BottomNavigationBarItem(icon: Icon(Icons.check_circle_outline), label: 'Done'),
+          BottomNavigationBarItem(icon: Icon(Icons.settings_outlined), label: 'Settings'),
         ],
       ),
     );

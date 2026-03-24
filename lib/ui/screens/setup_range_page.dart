@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart'; // Make sure 'intl' is in your pubspec.yaml
+import 'package:intl/intl.dart'; 
 import 'package:provider/provider.dart';
 import '../../models/track_model.dart';
 import '../../services/track_manager.dart';
@@ -13,12 +13,14 @@ class SetupRangePage extends StatefulWidget {
 }
 
 class _SetupRangePageState extends State<SetupRangePage> {
-  // 1. Initialize with your default (Today and Today + 3)
+  // 1. Initialize with default (Today and Today + 3 days)
   DateTime _startDate = DateTime.now();
   DateTime _endDate = DateTime.now().add(const Duration(days: 3));
 
-  // 2. THE PICKER LOGIC: Opens the calendar when a date is clicked
+  // 2. THE PICKER LOGIC: Opens the calendar with theme-aware colors
   Future<void> _selectDate(BuildContext context, bool isStartingDate) async {
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
+    
     final DateTime? picked = await showDatePicker(
       context: context,
       initialDate: isStartingDate ? _startDate : _endDate,
@@ -27,11 +29,18 @@ class _SetupRangePageState extends State<SetupRangePage> {
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
-            colorScheme: const ColorScheme.light(
-              primary: Color(0xFF6750A4), // The purple from your "Good" version
-              onPrimary: Colors.white,
-              onSurface: Colors.black,
-            ),
+            colorScheme: isDark 
+              ? const ColorScheme.dark(
+                  primary: Color(0xFFD0BCFF),
+                  onPrimary: Colors.black,
+                  surface: Color(0xFF2C2C2C),
+                  onSurface: Colors.white,
+                )
+              : const ColorScheme.light(
+                  primary: Color(0xFF6750A4),
+                  onPrimary: Colors.white,
+                  onSurface: Colors.black,
+                ),
           ),
           child: child!,
         );
@@ -55,37 +64,59 @@ class _SetupRangePageState extends State<SetupRangePage> {
 
   @override
   Widget build(BuildContext context) {
+    // Detect theme colors dynamically
+    final Color onSurfaceColor = Theme.of(context).colorScheme.onSurface;
+    final Color primaryColor = Theme.of(context).colorScheme.primary;
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
-      appBar: AppBar(title: const Text("Setup Range")),
+      appBar: AppBar(
+        title: const Text("Setup Range"),
+        foregroundColor: onSurfaceColor,
+      ),
       body: Padding(
         padding: const EdgeInsets.all(24.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text("Choose your schedule range:", style: TextStyle(color: Colors.grey)),
+            Text(
+              "Choose your schedule range for '${widget.track.name}':", 
+              style: TextStyle(color: onSurfaceColor.withValues(alpha: 0.6)),
+            ),
             const SizedBox(height: 30),
 
             // START DATE (Clickable)
-            _buildDateClickable("Starting Date", _startDate, () => _selectDate(context, true)),
+            _buildDateClickable(
+              context,
+              "Starting Date", 
+              _startDate, 
+              () => _selectDate(context, true)
+            ),
             
             const SizedBox(height: 40),
 
             // END DATE (Clickable)
-            _buildDateClickable("Ending Date", _endDate, () => _selectDate(context, false)),
+            _buildDateClickable(
+              context,
+              "Ending Date", 
+              _endDate, 
+              () => _selectDate(context, false)
+            ),
 
             const Spacer(),
 
-            // APPLY BUTTON
+            // APPLY BUTTON: Sends user back to Progress Page
             SizedBox(
               width: double.infinity,
               height: 55,
               child: ElevatedButton(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF6750A4),
-                  shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero), // Boxy
+                  backgroundColor: primaryColor,
+                  foregroundColor: isDark ? Colors.black : Colors.white,
+                  shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero), 
                 ),
                 onPressed: () async {
-                  // Final check: Range must be valid
+                  // Safety Check
                   if (_endDate.isBefore(_startDate)) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(content: Text("End date must be after start date")),
@@ -93,16 +124,22 @@ class _SetupRangePageState extends State<SetupRangePage> {
                     return;
                   }
 
-                  // SAVE TO CLOUD AND DISK
+                  // 1. SAVE TO CLOUD AND DISK
                   await context.read<TrackManager>().setSchedule(
                     widget.track.id, 
                     _startDate, 
                     _endDate
                   );
                   
-                  if (mounted) Navigator.pop(context);
+                  // 2. NAVIGATE BACK: Return to Progress Page
+                  if (mounted) {
+                    Navigator.pop(context);
+                  }
                 },
-                child: const Text("Apply & Start Tracking", style: TextStyle(color: Colors.white, fontSize: 16)),
+                child: const Text(
+                  "Apply & Start Tracking", 
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
               ),
             ),
             const SizedBox(height: 20),
@@ -112,26 +149,41 @@ class _SetupRangePageState extends State<SetupRangePage> {
     );
   }
 
-  // Helper to make the dates look like your "Good" screenshots
-  Widget _buildDateClickable(String label, DateTime date, VoidCallback onTap) {
+  // Helper widget for the clickable date rows
+  Widget _buildDateClickable(BuildContext context, String label, DateTime date, VoidCallback onTap) {
+    final Color onSurfaceColor = Theme.of(context).colorScheme.onSurface;
+    final Color primaryColor = Theme.of(context).colorScheme.primary;
+
     return InkWell(
-      onTap: onTap, // This makes it clickable!
+      onTap: onTap,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: const TextStyle(fontSize: 14, color: Colors.deepPurple, fontWeight: FontWeight.bold)),
+          Text(
+            label, 
+            style: TextStyle(
+              fontSize: 14, 
+              color: primaryColor, 
+              fontWeight: FontWeight.bold
+            ),
+          ),
           const SizedBox(height: 10),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
                 DateFormat('yyyy / MM / dd').format(date),
-                style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w300),
+                style: TextStyle(
+                  fontSize: 22, 
+                  fontWeight: FontWeight.w300,
+                  color: onSurfaceColor,
+                ),
               ),
-              const Icon(Icons.calendar_month_outlined, color: Colors.grey),
+              Icon(Icons.calendar_month_outlined, color: onSurfaceColor.withValues(alpha: 0.5)),
             ],
           ),
-          const Divider(thickness: 1, color: Colors.black),
+          // Divider adapts to theme
+          Divider(thickness: 1, color: onSurfaceColor.withValues(alpha: 0.2)),
         ],
       ),
     );
