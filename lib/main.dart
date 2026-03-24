@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:my_app/services/notification_service.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -13,6 +14,7 @@ import 'ui/screens/login_page.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  await NotificationService.init();
   final manager = TrackManager();
   await manager.init();
   runApp(ChangeNotifierProvider(create: (context) => manager, child: const MyApp()));

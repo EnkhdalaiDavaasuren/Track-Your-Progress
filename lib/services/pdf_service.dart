@@ -31,9 +31,15 @@ class PdfService {
         final int firstDayOffset = DateTime(currentMonth.year, currentMonth.month, 1).weekday % 7;
 
         List<int?> days = [];
-        for (int i = 0; i < firstDayOffset; i++) days.add(null);
-        for (int i = 1; i <= daysInMonth; i++) days.add(i);
-        while (days.length % 7 != 0) days.add(null);
+        for (int i = 0; i < firstDayOffset; i++) {
+          days.add(null);
+        }
+        for (int i = 1; i <= daysInMonth; i++) {
+          days.add(i);
+        }
+        while (days.length % 7 != 0) {
+          days.add(null);
+        }
 
         // Capture currentMonth for this specific page build to prevent naming inconsistency
         final pageDate = currentMonth;

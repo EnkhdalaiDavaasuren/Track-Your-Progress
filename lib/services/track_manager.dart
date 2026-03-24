@@ -1,5 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:my_app/services/notification_service.dart';
 import 'package:uuid/uuid.dart';
 import 'package:intl/intl.dart';
 import '../models/track_model.dart';
@@ -35,7 +37,17 @@ class TrackManager extends ChangeNotifier {
     if (index == -1) return;
     _tracks[index].startDate = start;
     _tracks[index].endDate = end;
+
     _tracks[index].dailyProgress.clear();
+    notifyListeners();
+    await _saveAll(_tracks[index]);
+
+    await NotificationService.scheduleExpirationAlert(
+    id, 
+    _tracks[index].name, 
+    end
+    );
+
     int daysInRange = end.difference(start).inDays;
     for (int i = 0; i <= daysInRange; i++) {
       String dateKey = DateFormat('yyyy-MM-dd').format(start.add(Duration(days: i)));
@@ -58,6 +70,13 @@ class TrackManager extends ChangeNotifier {
     notifyListeners();
     await _storage.saveTracks(_tracks.map((t) => t.toJson()).toList());
     await _firebase.removeTrack(id);
+
+    int dailyId = id.hashCode.abs();
+    int expiryId = id.hashCode.abs() + 1000;
+  
+    final FlutterLocalNotificationsPlugin _notifications = FlutterLocalNotificationsPlugin();
+    await _notifications.cancel(dailyId);
+    await _notifications.cancel(expiryId);
   }
 
   Future<void> renameTrack(String id, String newName) async {
@@ -101,4 +120,19 @@ class TrackManager extends ChangeNotifier {
     notifyListeners();
     await _storage.saveTracks([]);
   }
+
+  // Inside TrackManager class
+  Future<void> updateFrequency(String id, String newFrequency) async {
+  int index = _tracks.indexWhere((t) => t.id == id);
+  if (index != -1) {
+    _tracks[index].reminderFrequency = newFrequency;
+    notifyListeners();
+    
+    // Save to Disk and Cloud
+    await _storage.saveTracks(_tracks.map((t) => t.toJson()).toList());
+    await _firebase.syncTrack(_tracks[index]);
+
+    // This is where you would call your NotificationService.schedule logic later!
+  }
+}
 }
