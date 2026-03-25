@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../../../services/track_manager.dart';
-import '../../../services/pdf_service.dart'; // Make sure this path is correct
+import '../../../services/pdf_service.dart';
 import '../track_detail_page.dart';
 
 class DonePage extends StatelessWidget {
@@ -11,8 +11,12 @@ class DonePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final manager = Provider.of<TrackManager>(context);
-    // Use our getter to find expired tracks (limited to 10)
     final tracks = manager.expiredTracks;
+
+    // --- DYNAMIC THEME COLORS ---
+    final Color onSurfaceColor = Theme.of(context).colorScheme.onSurface;
+    final Color cardColor = Theme.of(context).cardColor;
+    final Color scaffoldBg = Theme.of(context).scaffoldBackgroundColor;
 
     return Scaffold(
       appBar: AppBar(title: const Text("Accomplishments"), centerTitle: true),
@@ -20,9 +24,12 @@ class DonePage extends StatelessWidget {
         children: [
           Expanded(
             child: tracks.isEmpty
-                ? const Center(
-                    child: Text("No finished tracks yet.",
-                        style: TextStyle(color: Colors.grey)))
+                ? Center(
+                    child: Text(
+                      "No finished tracks yet.",
+                      style: TextStyle(color: onSurfaceColor.withValues(alpha: 0.5)),
+                    ),
+                  )
                 : ListView.builder(
                     itemCount: tracks.length,
                     itemBuilder: (context, index) {
@@ -35,9 +42,10 @@ class DonePage extends StatelessWidget {
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
                           border: Border.all(
-                              color: fullyDone ? Colors.green : Colors.black,
+                              // Logic preserved: Green if done, theme-border if not
+                              color: fullyDone ? Colors.green : onSurfaceColor,
                               width: 1.5),
-                          color: Colors.white,
+                          color: cardColor, // FIXED: Now dark in Dark Mode
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -59,19 +67,19 @@ class DonePage extends StatelessWidget {
                                   ),
                                 ),
                                 IconButton(
-                                  icon: const Icon(Icons.delete_outline,
-                                      color: Colors.grey),
+                                  icon: Icon(Icons.delete_outline,
+                                      color: onSurfaceColor.withValues(alpha: 0.5)),
                                   onPressed: () => manager.deleteTrack(track.id),
                                 ),
                               ],
                             ),
                             
-                            // Show dates so user knows what they are printing
                             if (track.startDate != null)
                               Text(
                                 "${DateFormat('yyyy/MM/dd').format(track.startDate!)} - ${DateFormat('yyyy/MM/dd').format(track.endDate!)}",
-                                style: const TextStyle(
-                                    color: Colors.grey, fontSize: 13),
+                                style: TextStyle(
+                                    color: onSurfaceColor.withValues(alpha: 0.6), 
+                                    fontSize: 13),
                               ),
 
                             const SizedBox(height: 15),
@@ -83,15 +91,15 @@ class DonePage extends StatelessWidget {
                                 // 1. THE PDF BUTTON
                                 OutlinedButton.icon(
                                   style: OutlinedButton.styleFrom(
-                                    side: const BorderSide(color: Colors.black),
+                                    side: BorderSide(color: onSurfaceColor),
+                                    foregroundColor: onSurfaceColor,
                                     shape: const RoundedRectangleBorder(
                                         borderRadius: BorderRadius.zero),
                                   ),
                                   onPressed: () => PdfService.generateTrackPdf(track),
                                   icon: const Icon(Icons.picture_as_pdf, 
                                       size: 18, color: Colors.red),
-                                  label: const Text("PDF", 
-                                      style: TextStyle(color: Colors.black)),
+                                  label: const Text("PDF"),
                                 ),
                                 
                                 const SizedBox(width: 10),
@@ -99,7 +107,8 @@ class DonePage extends StatelessWidget {
                                 // 2. THE VIEW BUTTON
                                 OutlinedButton(
                                   style: OutlinedButton.styleFrom(
-                                    side: const BorderSide(color: Colors.black),
+                                    side: BorderSide(color: onSurfaceColor),
+                                    foregroundColor: onSurfaceColor,
                                     shape: const RoundedRectangleBorder(
                                         borderRadius: BorderRadius.zero),
                                   ),
@@ -111,8 +120,7 @@ class DonePage extends StatelessWidget {
                                               TrackDetailPage(track: track)),
                                     );
                                   },
-                                  child: const Text("View",
-                                      style: TextStyle(color: Colors.black)),
+                                  child: const Text("View"),
                                 ),
                               ],
                             )
@@ -127,12 +135,12 @@ class DonePage extends StatelessWidget {
           Container(
             width: double.infinity,
             padding: const EdgeInsets.all(16),
-            color: Colors.grey.shade50,
+            color: scaffoldBg, // FIXED: Blends with the page background
             child: Text(
               "Completed history: ${tracks.length}/10\nDelete old tracks to add more.",
               textAlign: TextAlign.center,
-              style: const TextStyle(
-                  color: Colors.black54, 
+              style: TextStyle(
+                  color: onSurfaceColor.withValues(alpha: 0.5), 
                   fontSize: 12, 
                   fontStyle: FontStyle.italic),
             ),
