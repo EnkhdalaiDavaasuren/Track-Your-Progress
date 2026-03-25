@@ -12,7 +12,7 @@ class NotificationService {
     tz.initializeTimeZones();
     
     const AndroidInitializationSettings androidSettings = 
-        AndroidInitializationSettings('@mipmap/ic_launcher');
+        AndroidInitializationSettings('@mipmap/trackyourprogress');
         
     const InitializationSettings settings = InitializationSettings(
       android: androidSettings,
@@ -61,8 +61,9 @@ class NotificationService {
       DateTime now = DateTime.now();
       DateTime scheduledDate;
 
-      if (frequency == "Every 3 days") scheduledDate = now.add(const Duration(days: 3));
-      else if (frequency == "Every 5 days") scheduledDate = now.add(const Duration(days: 5));
+      if (frequency == "Every 3 days") {
+        scheduledDate = now.add(const Duration(days: 3));
+      } else if (frequency == "Every 5 days") scheduledDate = now.add(const Duration(days: 5));
       else if (frequency == "Every month") scheduledDate = DateTime(now.year, now.month + 1, now.day);
       else if (frequency == "Every year") scheduledDate = DateTime(now.year + 1, now.month, now.day);
       else scheduledDate = now.add(const Duration(days: 1));

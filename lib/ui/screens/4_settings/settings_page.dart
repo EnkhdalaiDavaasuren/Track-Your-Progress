@@ -49,7 +49,7 @@ class SettingsPage extends StatelessWidget {
                           backgroundColor: isDark ? Colors.white : Colors.black,
                           // LOGIC: Check if path exists and is a real file on this phone
                           backgroundImage: (user?.photoURL != null && File(user!.photoURL!).existsSync())
-                              ? FileImage(File(user!.photoURL!)) 
+                              ? FileImage(File(user.photoURL!)) 
                               : null,
                           child: (user?.photoURL == null || !File(user!.photoURL!).existsSync())
                             ? Icon(Icons.person, color: isDark ? Colors.black : Colors.white, size: 35)

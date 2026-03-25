@@ -14,7 +14,7 @@
     <application
         android:label="Track Your Progress"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/trackyourprogress">
         
         <activity
             android:name=".MainActivity"

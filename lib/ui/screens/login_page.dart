@@ -16,11 +16,19 @@ class _LoginPageState extends State<LoginPage> {
   final _confirmPassController = TextEditingController();
   
   bool isLogin = true; 
-  // State for toggling visibility
   bool _obscurePass = true;
   bool _obscureConfirm = true;
 
-  // --- LOGIC: Validation (Security First) ---
+  // --- LOGIC: Strong Password Validation ---
+  bool _isPasswordStrong(String password) {
+    // Regex logic: 
+    // (?=.*?[0-9]) -> at least one digit
+    // (?=.*?[!@#\$&*~]) -> at least one special character
+    // .{8,} -> at least 8 characters
+    final regex = RegExp(r'^(?=.*?[0-9])(?=.*?[!@#\$&*~]).{8,}$');
+    return regex.hasMatch(password);
+  }
+
   bool _isValid() {
     final email = _emailController.text.trim();
     final pass = _passController.text.trim();
@@ -30,14 +38,25 @@ class _LoginPageState extends State<LoginPage> {
       _showError("Please enter a valid email address.");
       return false;
     }
-    if (pass.length < 6) {
-      _showError("Password must be at least 6 characters for security.");
-      return false;
+
+    // Only enforce "Strong" rules during Sign Up to avoid locking out existing users
+    if (!isLogin) {
+      if (!_isPasswordStrong(pass)) {
+        _showError("Password must be 8+ characters, include a number and a special character (!@#\$&*~).");
+        return false;
+      }
+      if (pass != confirm) {
+        _showError("Passwords do not match!");
+        return false;
+      }
+    } else {
+      // Basic check for Login
+      if (pass.isEmpty) {
+        _showError("Please enter your password.");
+        return false;
+      }
     }
-    if (!isLogin && pass != confirm) {
-      _showError("Passwords do not match!");
-      return false;
-    }
+    
     return true;
   }
 
@@ -84,7 +103,6 @@ class _LoginPageState extends State<LoginPage> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              // 1. BRANDING
               Icon(Icons.track_changes_outlined, size: 80, color: primaryColor),
               const SizedBox(height: 20),
               Text(
@@ -93,7 +111,7 @@ class _LoginPageState extends State<LoginPage> {
               ),
               const SizedBox(height: 40),
 
-              // 2. EMAIL INPUT
+              // Email
               TextField(
                 controller: _emailController,
                 keyboardType: TextInputType.emailAddress,
@@ -105,10 +123,10 @@ class _LoginPageState extends State<LoginPage> {
               ),
               const SizedBox(height: 15),
 
-              // 3. PASSWORD INPUT (With Eye Toggle)
+              // Password
               TextField(
                 controller: _passController,
-                obscureText: _obscurePass, // Logic to hide/show
+                obscureText: _obscurePass,
                 decoration: InputDecoration(
                   labelText: "Password",
                   prefixIcon: const Icon(Icons.lock_outline),
@@ -121,11 +139,11 @@ class _LoginPageState extends State<LoginPage> {
               ),
               const SizedBox(height: 15),
 
-              // 4. CONFIRM PASSWORD (Only during Sign Up)
+              // Repeat Password
               if (!isLogin) ...[
                 TextField(
                   controller: _confirmPassController,
-                  obscureText: _obscureConfirm, // Logic to hide/show
+                  obscureText: _obscureConfirm,
                   decoration: InputDecoration(
                     labelText: "Repeat Password",
                     prefixIcon: const Icon(Icons.lock_reset),
@@ -139,7 +157,6 @@ class _LoginPageState extends State<LoginPage> {
                 const SizedBox(height: 15),
               ],
 
-              // 5. ACTION BUTTON (Boxy)
               const SizedBox(height: 20),
               SizedBox(
                 width: double.infinity,
@@ -158,7 +175,6 @@ class _LoginPageState extends State<LoginPage> {
                 ),
               ),
 
-              // 6. BOTTOM SWITCHERS
               const SizedBox(height: 10),
               TextButton(
                 onPressed: () => setState(() {
