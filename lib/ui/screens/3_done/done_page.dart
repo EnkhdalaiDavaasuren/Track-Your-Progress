@@ -35,6 +35,9 @@ class DonePage extends StatelessWidget {
                     itemBuilder: (context, index) {
                       final track = tracks[index];
                       bool fullyDone = track.isFullyCompleted;
+                      
+                      // RELEASE FIX: Ensure both dates exist before formatting to prevent crash
+                      bool hasDates = track.startDate != null && track.endDate != null;
 
                       return Container(
                         margin: const EdgeInsets.symmetric(
@@ -45,7 +48,7 @@ class DonePage extends StatelessWidget {
                               // Logic preserved: Green if done, theme-border if not
                               color: fullyDone ? Colors.green : onSurfaceColor,
                               width: 1.5),
-                          color: cardColor, // FIXED: Now dark in Dark Mode
+                          color: cardColor, 
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -74,7 +77,8 @@ class DonePage extends StatelessWidget {
                               ],
                             ),
                             
-                            if (track.startDate != null)
+                            // RELEASE FIX: Conditional formatting
+                            if (hasDates)
                               Text(
                                 "${DateFormat('yyyy/MM/dd').format(track.startDate!)} - ${DateFormat('yyyy/MM/dd').format(track.endDate!)}",
                                 style: TextStyle(
@@ -135,7 +139,7 @@ class DonePage extends StatelessWidget {
           Container(
             width: double.infinity,
             padding: const EdgeInsets.all(16),
-            color: scaffoldBg, // FIXED: Blends with the page background
+            color: scaffoldBg, 
             child: Text(
               "Completed history: ${tracks.length}/10\nDelete old tracks to add more.",
               textAlign: TextAlign.center,

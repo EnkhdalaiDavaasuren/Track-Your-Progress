@@ -1,4 +1,5 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
 
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -20,7 +21,10 @@ class AuthService {
       await _auth.signInWithEmailAndPassword(email: email, password: password);
       return null; // Success
     } on FirebaseAuthException catch (e) {
-      return e.message;
+      // RELEASE FIX: Fallback string if message is null
+      return e.message ?? "Login failed. Please check your credentials.";
+    } catch (e) {
+      return "An unexpected error occurred.";
     }
   }
 
@@ -30,7 +34,10 @@ class AuthService {
       await _auth.createUserWithEmailAndPassword(email: email, password: password);
       return null; // Success
     } on FirebaseAuthException catch (e) {
-      return e.message;
+      // RELEASE FIX: Fallback string if message is null
+      return e.message ?? "Sign up failed. Please try again.";
+    } catch (e) {
+      return "An unexpected error occurred.";
     }
   }
 
@@ -40,7 +47,7 @@ class AuthService {
       await _auth.sendPasswordResetEmail(email: email);
       return null; // Success
     } on FirebaseAuthException catch (e) {
-      return e.message;
+      return e.message ?? "Could not send reset email.";
     } catch (e) {
       return "An unexpected error occurred.";
     }
@@ -48,29 +55,41 @@ class AuthService {
 
   // LOGOUT
   Future<void> signOut() async {
-    await _auth.signOut();
+    try {
+      await _auth.signOut();
+    } catch (e) {
+      debugPrint("Logout error: $e");
+    }
   }
 
 
-  // --- PROFILE MANAGEMENT (The "Stuff" you requested) ---
+  // --- PROFILE MANAGEMENT ---
 
   // Update Display Name
   Future<void> updateProfileName(String newName) async {
-    final user = _auth.currentUser;
-    if (user != null) {
-      await user.updateDisplayName(newName);
-      // CRITICAL: Reload forces the app to "see" the new name without logging out
-      await user.reload(); 
+    try {
+      final user = _auth.currentUser;
+      if (user != null) {
+        await user.updateDisplayName(newName);
+        // CRITICAL: Reload forces the app to "see" the new name without logging out
+        await user.reload(); 
+      }
+    } catch (e) {
+      debugPrint("Error updating profile name: $e");
     }
   }
 
   // Update Profile Image URL
   Future<void> updateProfileImage(String url) async {
-    final user = _auth.currentUser;
-    if (user != null) {
-      await user.updatePhotoURL(url);
-      // CRITICAL: Reload forces the app to "see" the new icon without logging out
-      await user.reload();
+    try {
+      final user = _auth.currentUser;
+      if (user != null) {
+        await user.updatePhotoURL(url);
+        // CRITICAL: Reload forces the app to "see" the new icon without logging out
+        await user.reload();
+      }
+    } catch (e) {
+      debugPrint("Error updating profile image: $e");
     }
   }
 
@@ -79,11 +98,19 @@ class AuthService {
 
   // Verify Email Address
   Future<void> sendEmailVerification() async {
-    await _auth.currentUser?.sendEmailVerification();
+    try {
+      await _auth.currentUser?.sendEmailVerification();
+    } catch (e) {
+      debugPrint("Error sending verification: $e");
+    }
   }
 
   // Change Password while logged in
   Future<void> updatePassword(String newPassword) async {
-    await _auth.currentUser?.updatePassword(newPassword);
+    try {
+      await _auth.currentUser?.updatePassword(newPassword);
+    } catch (e) {
+      debugPrint("Error updating password: $e");
+    }
   }
 }

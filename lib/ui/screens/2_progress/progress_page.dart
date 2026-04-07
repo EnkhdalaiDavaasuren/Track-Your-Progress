@@ -22,7 +22,6 @@ class ProgressPage extends StatelessWidget {
       appBar: AppBar(
         title: const Text("Progress"), 
         centerTitle: true,
-        // Ensure AppBar text matches theme
         foregroundColor: borderColor,
       ),
       body: Column(
@@ -39,13 +38,14 @@ class ProgressPage extends StatelessWidget {
                     itemCount: tracks.length,
                     itemBuilder: (context, index) {
                       final track = tracks[index];
+                      // RELEASE FIX: Safer date check (ensure both exist)
+                      bool hasDates = track.startDate != null && track.endDate != null;
                       bool isNotSet = track.startDate == null;
 
                       return Container(
                         margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
-                          // DYNAMIC COLORS: Flips between white/black based on theme
                           border: Border.all(color: borderColor, width: 1.5),
                           color: cardBackground,
                         ),
@@ -61,12 +61,11 @@ class ProgressPage extends StatelessWidget {
                                     style: TextStyle(
                                       fontSize: 18, 
                                       fontWeight: FontWeight.bold,
-                                      color: borderColor, // Name color follows theme
+                                      color: borderColor,
                                     ),
                                   ),
                                 ),
                                 
-                                // --- ACTION ICONS ROW (PRESERVED) ---
                                 Row(
                                   children: [
                                     // 1. NOTIFICATION DROPDOWN
@@ -79,9 +78,13 @@ class ProgressPage extends StatelessWidget {
                                       tooltip: "Reminder Frequency",
                                       onSelected: (String value) {
                                         manager.updateFrequency(track.id, value);
-                                        ScaffoldMessenger.of(context).showSnackBar(
-                                          SnackBar(content: Text("Reminder set to: $value"))
-                                        );
+                                        // RELEASE FIX: Ensure context is still valid before showing SnackBar
+                                        if (context.mounted) {
+                                          ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            SnackBar(content: Text("Reminder set to: $value"))
+                                          );
+                                        }
                                       },
                                       itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
                                         const PopupMenuItem(value: "Every day", child: Text("Every day")),
@@ -105,8 +108,9 @@ class ProgressPage extends StatelessWidget {
                               ],
                             ),
                             
-                            // DATE RANGE DISPLAY (PRESERVED)
-                            if (!isNotSet)
+                            // DATE RANGE DISPLAY
+                            // RELEASE FIX: Only try to format if we are 100% sure dates aren't null
+                            if (hasDates)
                               Padding(
                                 padding: const EdgeInsets.only(top: 0.0, bottom: 8.0),
                                 child: Text(
@@ -125,7 +129,7 @@ class ProgressPage extends StatelessWidget {
                                 style: OutlinedButton.styleFrom(
                                   shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
                                   side: BorderSide(color: borderColor),
-                                  foregroundColor: borderColor, // Button text follows theme
+                                  foregroundColor: borderColor,
                                 ),
                                 onPressed: () {
                                   if (track.startDate == null) {
@@ -150,7 +154,6 @@ class ProgressPage extends StatelessWidget {
                   ),
           ),
           
-          // --- FOOTER COUNT (ESSENTIAL FOR YOUR 10-TRACK LIMIT) ---
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 15),
             child: Text(

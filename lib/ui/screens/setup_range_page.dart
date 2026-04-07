@@ -13,19 +13,28 @@ class SetupRangePage extends StatefulWidget {
 }
 
 class _SetupRangePageState extends State<SetupRangePage> {
-  // 1. Initialize with default (Today and Today + 3 days)
-  DateTime _startDate = DateTime.now();
-  DateTime _endDate = DateTime.now().add(const Duration(days: 3));
+  late DateTime _startDate;
+  late DateTime _endDate;
+  bool _isSaving = false;
 
-  // 2. THE PICKER LOGIC: Opens the calendar with theme-aware colors
+  @override
+  void initState() {
+    super.initState();
+    final now = DateTime.now();
+    _startDate = DateTime(now.year, now.month, now.day);
+    _endDate = _startDate.add(const Duration(days: 3));
+  }
+
   Future<void> _selectDate(BuildContext context, bool isStartingDate) async {
     final bool isDark = Theme.of(context).brightness == Brightness.dark;
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
     
     final DateTime? picked = await showDatePicker(
       context: context,
       initialDate: isStartingDate ? _startDate : _endDate,
-      firstDate: DateTime.now(), // Cannot pick the past
-      lastDate: DateTime.now().add(const Duration(days: 3650)), // 10 Year Limit
+      firstDate: today, 
+      lastDate: today.add(const Duration(days: 3650)), // Picker already allows 10 years
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
@@ -49,14 +58,14 @@ class _SetupRangePageState extends State<SetupRangePage> {
 
     if (picked != null) {
       setState(() {
+        final normalized = DateTime(picked.year, picked.month, picked.day);
         if (isStartingDate) {
-          _startDate = picked;
-          // Logic: End date cannot be before start date
+          _startDate = normalized;
           if (_endDate.isBefore(_startDate)) {
             _endDate = _startDate.add(const Duration(days: 1));
           }
         } else {
-          _endDate = picked;
+          _endDate = normalized;
         }
       });
     }
@@ -64,7 +73,6 @@ class _SetupRangePageState extends State<SetupRangePage> {
 
   @override
   Widget build(BuildContext context) {
-    // Detect theme colors dynamically
     final Color onSurfaceColor = Theme.of(context).colorScheme.onSurface;
     final Color primaryColor = Theme.of(context).colorScheme.primary;
     final bool isDark = Theme.of(context).brightness == Brightness.dark;
@@ -72,6 +80,7 @@ class _SetupRangePageState extends State<SetupRangePage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text("Setup Range"),
+        centerTitle: true,
         foregroundColor: onSurfaceColor,
       ),
       body: Padding(
@@ -85,7 +94,6 @@ class _SetupRangePageState extends State<SetupRangePage> {
             ),
             const SizedBox(height: 30),
 
-            // START DATE (Clickable)
             _buildDateClickable(
               context,
               "Starting Date", 
@@ -95,7 +103,6 @@ class _SetupRangePageState extends State<SetupRangePage> {
             
             const SizedBox(height: 40),
 
-            // END DATE (Clickable)
             _buildDateClickable(
               context,
               "Ending Date", 
@@ -105,7 +112,6 @@ class _SetupRangePageState extends State<SetupRangePage> {
 
             const Spacer(),
 
-            // APPLY BUTTON: Sends user back to Progress Page
             SizedBox(
               width: double.infinity,
               height: 55,
@@ -115,8 +121,7 @@ class _SetupRangePageState extends State<SetupRangePage> {
                   foregroundColor: isDark ? Colors.black : Colors.white,
                   shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero), 
                 ),
-                onPressed: () async {
-                  // Safety Check
+                onPressed: _isSaving ? null : () async {
                   if (_endDate.isBefore(_startDate)) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(content: Text("End date must be after start date")),
@@ -124,22 +129,43 @@ class _SetupRangePageState extends State<SetupRangePage> {
                     return;
                   }
 
-                  // 1. SAVE TO CLOUD AND DISK
-                  await context.read<TrackManager>().setSchedule(
-                    widget.track.id, 
-                    _startDate, 
-                    _endDate
-                  );
-                  
-                  // 2. NAVIGATE BACK: Return to Progress Page
-                  if (mounted) {
-                    Navigator.pop(context);
+                  // --- LOGIC FIX FOR ISSUE #3 ---
+                  // Changed 730 (2 years) to 3650 (10 years)
+                  if (_endDate.difference(_startDate).inDays > 3650) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text("Maximum range is 10 years.")),
+                    );
+                    return;
+                  }
+
+                  setState(() => _isSaving = true);
+
+                  try {
+                    await context.read<TrackManager>().setSchedule(
+                      widget.track.id, 
+                      _startDate, 
+                      _endDate
+                    );
+                    
+                    if (mounted) {
+                      Navigator.pop(context);
+                    }
+                  } catch (e) {
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text("Error saving schedule: $e")),
+                      );
+                    }
+                  } finally {
+                    if (mounted) setState(() => _isSaving = false);
                   }
                 },
-                child: const Text(
-                  "Apply & Start Tracking", 
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                ),
+                child: _isSaving 
+                  ? const CircularProgressIndicator(color: Colors.white)
+                  : const Text(
+                      "Apply & Start Tracking", 
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    ),
               ),
             ),
             const SizedBox(height: 20),
@@ -149,7 +175,6 @@ class _SetupRangePageState extends State<SetupRangePage> {
     );
   }
 
-  // Helper widget for the clickable date rows
   Widget _buildDateClickable(BuildContext context, String label, DateTime date, VoidCallback onTap) {
     final Color onSurfaceColor = Theme.of(context).colorScheme.onSurface;
     final Color primaryColor = Theme.of(context).colorScheme.primary;
@@ -182,7 +207,6 @@ class _SetupRangePageState extends State<SetupRangePage> {
               Icon(Icons.calendar_month_outlined, color: onSurfaceColor.withValues(alpha: 0.5)),
             ],
           ),
-          // Divider adapts to theme
           Divider(thickness: 1, color: onSurfaceColor.withValues(alpha: 0.2)),
         ],
       ),

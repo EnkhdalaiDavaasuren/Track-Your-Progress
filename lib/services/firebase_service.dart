@@ -5,25 +5,43 @@ import '../models/track_model.dart';
 class FirebaseService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
   
-  // Get current user ID
-  String get uid => FirebaseAuth.instance.currentUser?.uid ?? "unknown";
+  String? get uid => FirebaseAuth.instance.currentUser?.uid;
 
-  // SAVE/UPDATE
   Future<void> syncTrack(Track track) async {
-    // FIXED: Changed toMap() to toJson()
-    await _db.collection('users').doc(uid).collection('tracks').doc(track.id).set(track.toJson());
+    final currentUid = uid;
+    if (currentUid == null) return;
+    try {
+      await _db.collection('users').doc(currentUid).collection('tracks').doc(track.id).set(track.toJson());
+    } catch (e) {
+      print("Firestore Sync Error: $e");
+    }
   }
 
-  // DELETE
   Future<void> removeTrack(String trackId) async {
-    await _db.collection('users').doc(uid).collection('tracks').doc(trackId).delete();
+    final currentUid = uid;
+    if (currentUid == null) return;
+    await _db.collection('users').doc(currentUid).collection('tracks').doc(trackId).delete();
   }
 
-  // FETCH ALL FROM CLOUD
   Future<List<Track>> fetchTracks() async {
-    final snapshot = await _db.collection('users').doc(uid).collection('tracks').get();
-    
-    // FIXED: Changed fromMap to fromJson
-    return snapshot.docs.map((doc) => Track.fromJson(doc.data())).toList();
+    final currentUid = uid;
+    if (currentUid == null) return [];
+
+    try {
+      final snapshot = await _db.collection('users').doc(currentUid).collection('tracks').get();
+      List<Track> tracks = [];
+      for (var doc in snapshot.docs) {
+        try {
+          // RELEASE FIX: Wrap individual track parsing to prevent one error from breaking the whole app
+          tracks.add(Track.fromJson(doc.data()));
+        } catch (e) {
+          print("Skipping corrupted track ${doc.id}: $e");
+        }
+      }
+      return tracks;
+    } catch (e) {
+      print("Firestore Fetch Error: $e");
+      return [];
+    }
   }
 }

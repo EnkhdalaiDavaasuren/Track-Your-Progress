@@ -4,13 +4,24 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import 'package:intl/intl.dart';
 import '../models/track_model.dart';
+import 'package:flutter/material.dart'; // Added for debugPrint
 
 class PdfService {
   static Future<void> generateTrackPdf(Track track) async {
     try {
       final pdf = pw.Document();
-      final font = await PdfGoogleFonts.robotoRegular();
-      final boldFont = await PdfGoogleFonts.robotoBold();
+      
+      // RELEASE FIX: If Google Fonts fails due to no internet, use fallback to prevent crash
+      pw.Font font;
+      pw.Font boldFont;
+      try {
+        font = await PdfGoogleFonts.robotoRegular();
+        boldFont = await PdfGoogleFonts.robotoBold();
+      } catch (e) {
+        font = pw.Font.helvetica();
+        boldFont = pw.Font.helveticaBold();
+        debugPrint("Font loading failed, using fallback: $e");
+      }
       
       // 1. Get current User info
       final user = FirebaseAuth.instance.currentUser;
@@ -22,10 +33,16 @@ class PdfService {
       // Start at the 1st of the starting month
       DateTime currentMonth = DateTime(start.year, start.month, 1);
 
+      // Loop Safety Counter to prevent infinite loops if dates are corrupted
+      int safetyMonthCount = 0;
+
       // 2. Loop until we pass the end date's month
-      while (currentMonth.isBefore(end) || 
-            (currentMonth.year == end.year && currentMonth.month == end.month)) {
+      while ((currentMonth.isBefore(end) || 
+            (currentMonth.year == end.year && currentMonth.month == end.month)) && 
+            safetyMonthCount < 120) { // Limit to 10 years max for safety
         
+        safetyMonthCount++;
+
         // Month-specific math for the grid
         final int daysInMonth = DateTime(currentMonth.year, currentMonth.month + 1, 0).day;
         final int firstDayOffset = DateTime(currentMonth.year, currentMonth.month, 1).weekday % 7;
@@ -155,11 +172,11 @@ class PdfService {
 
       await Printing.layoutPdf(
         onLayout: (format) async => pdf.save(),
-        name: '${track.name}_Progress_Report.pdf',
+        name: '${track.name.replaceAll(RegExp(r'[^\w\s]+'), '')}_Progress_Report.pdf',
       );
 
     } catch (e) {
-      print("PDF Error: $e");
+      debugPrint("PDF Error: $e");
     }
   }
 }

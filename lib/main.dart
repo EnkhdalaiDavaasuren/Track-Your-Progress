@@ -4,12 +4,10 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'firebase_options.dart';
 
-// Services
 import 'services/track_manager.dart';
 import 'services/theme_manager.dart';
 import 'services/notification_service.dart';
 
-// UI Screens
 import 'ui/screens/1_home/home_page.dart';
 import 'ui/screens/2_progress/progress_page.dart';
 import 'ui/screens/3_done/done_page.dart';
@@ -18,24 +16,32 @@ import 'ui/screens/login_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
-  // 1. Initialize Firebase & System Services
-  await NotificationService.init();
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
-  // 2. Initialize Data Manager
-  final trackManager = TrackManager();
-  await trackManager.init(); // Load from phone memory immediately
+  try {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+    
+    // 3. Start Notifications
+    await NotificationService.init();
 
-  runApp(
-    MultiProvider(
-      providers: [
-        ChangeNotifierProvider(create: (_) => trackManager),
-        ChangeNotifierProvider(create: (_) => ThemeManager()),
-      ],
-      child: const MyApp(),
-    ),
-  );
+    // 4. Load Database
+    final trackManager = TrackManager();
+    await trackManager.init();
+
+    runApp(
+      MultiProvider(
+        providers: [
+          ChangeNotifierProvider(create: (_) => trackManager),
+          ChangeNotifierProvider(create: (_) => ThemeManager()),
+        ],
+        child: const MyApp(),
+      ),
+    );
+  } catch (e) {
+    // If it crashes, this prints to the logs so you can see it in Google Play Console
+    debugPrint("CRITICAL STARTUP ERROR: $e");
+  }
 }
 
 class MyApp extends StatelessWidget {

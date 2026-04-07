@@ -2,6 +2,8 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/timezone.dart' as tz;
 import 'package:timezone/data/latest.dart' as tz;
 import 'package:flutter/foundation.dart'; // For kIsWeb check
+import 'package:flutter_timezone/flutter_timezone.dart'; // Add this package!
+
 
 class NotificationService {
   static final FlutterLocalNotificationsPlugin _notifications = FlutterLocalNotificationsPlugin();
@@ -10,12 +12,22 @@ class NotificationService {
     if (kIsWeb) return; // Notifications don't work this way on Web
 
     tz.initializeTimeZones();
+
+    try {
+      final currentTimeZone = await FlutterTimezone.getLocalTimezone();
+      final String timeZoneName = currentTimeZone.identifier;
+      tz.setLocalLocation(tz.getLocation(timeZoneName));
+    } catch (e) {
+          tz.setLocalLocation(tz.getLocation('UTC'));
+          debugPrint("Timezone detection failed: $e");
+    }
+
     
     const AndroidInitializationSettings androidSettings = 
         AndroidInitializationSettings('@mipmap/trackyourprogress');
         
     const InitializationSettings settings = InitializationSettings(
-      android: androidSettings,
+        android: androidSettings,
     );
     
     await _notifications.initialize(settings);
@@ -53,7 +65,8 @@ class NotificationService {
             priority: Priority.high,
           ),
         ),
-        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+        // FIX: Changed to inexact to prevent Android 14 release crashes
+        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
       );
     } else {
       // For "Every 3 days", "Month", etc., we schedule a single Zoned notification
@@ -76,7 +89,8 @@ class NotificationService {
         const NotificationDetails(
           android: AndroidNotificationDetails('track_reminders', 'Track Reminders'),
         ),
-        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+        // FIX: Changed to inexact to prevent Android 14 release crashes
+        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
         uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
       );
     }
@@ -113,7 +127,8 @@ class NotificationService {
             priority: Priority.high,
           ),
         ),
-        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+        // FIX: Changed to inexact to prevent Android 14 release crashes
+        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
         uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
       );
     } catch (e) {

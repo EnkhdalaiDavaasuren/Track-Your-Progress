@@ -1,10 +1,9 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../../services/track_manager.dart';
-import 'package:my_app/ui/screens/4_settings/sub_page/change_profile_page.dart'; // Ensure this import is correct
+// Note: Ensure this import path matches your project name exactly
+import 'package:my_app/ui/screens/4_settings/sub_page/change_profile_page.dart'; 
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
@@ -19,6 +18,11 @@ class HomePage extends StatelessWidget {
       body: StreamBuilder<User?>(
         stream: FirebaseAuth.instance.userChanges(),
         builder: (context, snapshot) {
+          // RELEASE FIX: Handle the waiting state to prevent "User" flashing
+          if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
           final user = snapshot.data;
           String displayName = user?.displayName ?? user?.email?.split('@')[0] ?? "User";
 
@@ -40,12 +44,17 @@ class HomePage extends StatelessWidget {
                       CircleAvatar(
                         radius: 25,
                         backgroundColor: Theme.of(context).cardColor,
-                        backgroundImage: (user?.photoURL != null && File(user!.photoURL!).existsSync())
-                            ? FileImage(File(user.photoURL!)) 
-                            : null,
-                        child: (user?.photoURL == null || !File(user!.photoURL!).existsSync())
-                            ? Icon(Icons.person, size: 30, color: Theme.of(context).colorScheme.onSurface)
-                            : null,
+                        // RELEASE FIX: Safer Image Handling
+                        backgroundImage: (user?.photoURL != null && 
+                                          user!.photoURL!.isNotEmpty && 
+                                          user.photoURL!.startsWith('http'))
+                          ? NetworkImage(user.photoURL!)
+                          : null,
+                        child: (user?.photoURL == null || 
+                                user!.photoURL!.isEmpty || 
+                                !user.photoURL!.startsWith('http'))
+                          ? Icon(Icons.person, size: 30, color: Theme.of(context).colorScheme.onSurface)
+                          : null,
                       ),
                       const SizedBox(width: 15),
                       Expanded(
@@ -73,10 +82,16 @@ class HomePage extends StatelessWidget {
               ),
 
               Expanded(
-                child: ListView.builder(
+                child: topTracks.isEmpty 
+                ? const Center(child: Text("No active tracks with schedules set.", style: TextStyle(color: Colors.grey)))
+                : ListView.builder(
                   itemCount: topTracks.length,
                   itemBuilder: (context, index) {
                     final track = topTracks[index];
+                    
+                    // RELEASE FIX: Double check both dates aren't null before forced unwrapping
+                    final bool hasValidRange = track.startDate != null && track.endDate != null;
+
                     return Container(
                       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                       padding: const EdgeInsets.all(16),
@@ -90,7 +105,7 @@ class HomePage extends StatelessWidget {
                           Text(track.name, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w500)),
                           const SizedBox(height: 4),
                           Text(
-                            track.startDate == null 
+                            !hasValidRange 
                               ? "Not Set" 
                               : "${track.startDate!.month}/${track.startDate!.day} - ${track.endDate!.month}/${track.endDate!.day}",
                             style: TextStyle(color: borderColor.withValues(alpha: 0.5), fontSize: 13),

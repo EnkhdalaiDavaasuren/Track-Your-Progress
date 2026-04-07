@@ -19,7 +19,9 @@ class _TrackDetailPageState extends State<TrackDetailPage> {
   @override
   void initState() {
     super.initState();
-    displayMonth = widget.track.startDate ?? DateTime.now();
+    // Initialize to the start date or today
+    final initialDate = widget.track.startDate ?? DateTime.now();
+    displayMonth = DateTime(initialDate.year, initialDate.month, 1);
   }
 
   @override
@@ -28,26 +30,29 @@ class _TrackDetailPageState extends State<TrackDetailPage> {
 
     return Consumer<TrackManager>(
       builder: (context, manager, child) {
-        // LOGIC FIX: Search the MASTER list so we don't crash when state changes
+        // RELEASE FIX: Robust track lookup to prevent "State Desync" crashes
         final track = manager.allTracks.firstWhere(
           (t) => t.id == widget.track.id,
           orElse: () => widget.track,
         );
 
+        // Calendar Math
         final int daysInMonth = DateTime(displayMonth.year, displayMonth.month + 1, 0).day;
+        // weekday: 1 (Mon) to 7 (Sun). Sunday becomes 0 for our grid.
         final int firstDayOffset = DateTime(displayMonth.year, displayMonth.month, 1).weekday % 7;
 
         return Scaffold(
           appBar: AppBar(
-            title: Row(children: [
-              Text(track.name),
-              IconButton(
-                icon: const Icon(Icons.edit, size: 18),
-                onPressed: () => _showRenameDialog(context, track),
-              )
-            ]),
+            title: Row(
+              children: [
+                Expanded(child: Text(track.name, overflow: TextOverflow.ellipsis)),
+                IconButton(
+                  icon: const Icon(Icons.edit, size: 18),
+                  onPressed: () => _showRenameDialog(context, track),
+                )
+              ],
+            ),
             actions: [
-              // PDF available once it's officially Done
               if (track.isDone)
                 IconButton(
                   icon: const Icon(Icons.picture_as_pdf, color: Colors.red),
@@ -69,7 +74,7 @@ class _TrackDetailPageState extends State<TrackDetailPage> {
                   ),
                   child: Text(
                     track.checkText.isEmpty ? "Add Check Text" : "Goal: ${track.checkText}",
-                    style: TextStyle(color: borderColor),
+                    style: TextStyle(color: borderColor, overflow: TextOverflow.ellipsis),
                   ),
                 ),
               ),
@@ -96,7 +101,7 @@ class _TrackDetailPageState extends State<TrackDetailPage> {
                 ),
               ),
 
-              // --- DAY HEADERS (Sun, Mon, Tue...) ---
+              // --- DAY HEADERS ---
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 child: Row(
@@ -121,10 +126,10 @@ class _TrackDetailPageState extends State<TrackDetailPage> {
                     if (index < firstDayOffset) return const SizedBox.shrink();
 
                     int day = index - firstDayOffset + 1;
+                    // RELEASE FIX: Normalized current cell date
                     DateTime date = DateTime(displayMonth.year, displayMonth.month, day);
                     String dateKey = DateFormat('yyyy-MM-dd').format(date);
                     
-                    // Strict Range Check (Normalized)
                     bool isInRange = false;
                     if (track.startDate != null && track.endDate != null) {
                       DateTime s = DateTime(track.startDate!.year, track.startDate!.month, track.startDate!.day);
@@ -145,8 +150,11 @@ class _TrackDetailPageState extends State<TrackDetailPage> {
                         child: Center(
                           child: Text(
                             "$day", 
-                            style: TextStyle(color: isInRange ? borderColor : borderColor.withValues(alpha: 0.2))
-                          )
+                            style: TextStyle(
+                              color: isInRange ? borderColor : borderColor.withValues(alpha: 0.2),
+                              fontWeight: isInRange ? FontWeight.bold : FontWeight.normal
+                            )
+                          ),
                         ),
                       ),
                     );
@@ -169,7 +177,7 @@ class _TrackDetailPageState extends State<TrackDetailPage> {
   void _showProgressDialog(BuildContext context, Track track, String dateKey) {
     DayStatus currentStatus = track.dailyProgress[dateKey] ?? DayStatus.notSet;
 
-    // LOGIC FIX: In the Done Page (isDone), you can ONLY edit Grey circles. 
+    // Logic: In the Done Page, you can ONLY edit Grey circles
     if (track.isDone && currentStatus != DayStatus.notSet) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Finished days are locked and cannot be changed."))
@@ -177,25 +185,72 @@ class _TrackDetailPageState extends State<TrackDetailPage> {
       return;
     }
 
-    showDialog(context: context, builder: (ctx) => AlertDialog(
-      backgroundColor: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF2C2C2C) : const Color(0xFFF3EDF7), 
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
-      title: Center(child: Text(track.checkText.isEmpty ? "Today's Progress" : track.checkText)),
-      actionsAlignment: MainAxisAlignment.spaceEvenly,
-      actions: [
-        TextButton(onPressed: () { context.read<TrackManager>().updateDayStatus(track.id, dateKey, DayStatus.yes); Navigator.pop(ctx); }, child: const Text("Yes", style: TextStyle(fontWeight: FontWeight.bold))),
-        TextButton(onPressed: () { context.read<TrackManager>().updateDayStatus(track.id, dateKey, DayStatus.no); Navigator.pop(ctx); }, child: const Text("No", style: TextStyle(fontWeight: FontWeight.bold))),
-      ],
-    ));
+    showDialog(
+      context: context, 
+      builder: (ctx) => AlertDialog(
+        backgroundColor: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF2C2C2C) : const Color(0xFFF3EDF7), 
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+        title: Center(child: Text(track.checkText.isEmpty ? "Today's Progress" : track.checkText)),
+        actionsAlignment: MainAxisAlignment.spaceEvenly,
+        actions: [
+          TextButton(
+            onPressed: () {
+              context.read<TrackManager>().updateDayStatus(track.id, dateKey, DayStatus.yes);
+              Navigator.pop(ctx);
+            }, 
+            child: const Text("Yes", style: TextStyle(fontWeight: FontWeight.bold))
+          ),
+          TextButton(
+            onPressed: () {
+              context.read<TrackManager>().updateDayStatus(track.id, dateKey, DayStatus.no);
+              Navigator.pop(ctx);
+            }, 
+            child: const Text("No", style: TextStyle(fontWeight: FontWeight.bold))
+          ),
+        ],
+      )
+    );
   }
   
   void _showRenameDialog(BuildContext context, Track track) {
     final c = TextEditingController(text: track.name);
-    showDialog(context: context, builder: (ctx) => AlertDialog(title: const Text("Rename"), content: TextField(controller: c), actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Cancel")), TextButton(onPressed: () { context.read<TrackManager>().renameTrack(track.id, c.text); Navigator.pop(ctx); }, child: const Text("Save"))]));
+    showDialog(
+      context: context, 
+      builder: (ctx) => AlertDialog(
+        title: const Text("Rename"), 
+        content: TextField(controller: c, autofocus: true), 
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Cancel")), 
+          TextButton(
+            onPressed: () {
+              context.read<TrackManager>().renameTrack(track.id, c.text.trim());
+              Navigator.pop(ctx);
+            }, 
+            child: const Text("Save")
+          )
+        ]
+      )
+    );
   }
 
   void _showCheckTextDialog(BuildContext context, Track track) {
     final c = TextEditingController(text: track.checkText);
-    showDialog(context: context, builder: (ctx) => AlertDialog(title: const Text("Goal Question"), content: TextField(controller: c, maxLength: 40), actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Cancel")), TextButton(onPressed: () { context.read<TrackManager>().updateCheckText(track.id, c.text); Navigator.pop(ctx); }, child: const Text("Apply"))]));
+    showDialog(
+      context: context, 
+      builder: (ctx) => AlertDialog(
+        title: const Text("Goal Question"), 
+        content: TextField(controller: c, maxLength: 40, autofocus: true), 
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Cancel")), 
+          TextButton(
+            onPressed: () {
+              context.read<TrackManager>().updateCheckText(track.id, c.text.trim());
+              Navigator.pop(ctx);
+            }, 
+            child: const Text("Apply")
+          )
+        ]
+      )
+    );
   }
 }

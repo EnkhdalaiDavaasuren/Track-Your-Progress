@@ -1,3 +1,4 @@
+import 'dart:io'; // RELEASE FIX: Required for File class
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:my_app/ui/screens/4_settings/sub_page/change_profile_page.dart';
@@ -5,11 +6,31 @@ import 'package:my_app/ui/screens/4_settings/sub_page/notification_prefs_page.da
 import 'package:my_app/ui/screens/4_settings/sub_page/security_page.dart';
 import 'package:provider/provider.dart';
 import 'package:app_settings/app_settings.dart';
-import 'dart:io'; // CRITICAL: Needed for File()
 import '../../../services/track_manager.dart';
 import '../../../services/theme_manager.dart';
+
 class SettingsPage extends StatelessWidget {
   const SettingsPage({super.key});
+
+  // RELEASE FIX: Helper to safely determine the profile image
+  ImageProvider? _getProfileImage(User? user) {
+    final String? photoUrl = user?.photoURL;
+    if (photoUrl == null || photoUrl.isEmpty) return null;
+
+    if (photoUrl.startsWith('http')) {
+      return NetworkImage(photoUrl);
+    } else {
+      try {
+        final file = File(photoUrl);
+        if (file.existsSync()) {
+          return FileImage(file);
+        }
+      } catch (e) {
+        debugPrint("Error loading local settings image: $e");
+      }
+    }
+    return null;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -18,12 +39,13 @@ class SettingsPage extends StatelessWidget {
     final borderColor = isDark ? Colors.white24 : Colors.black;
 
     return Scaffold(
-      appBar: AppBar(title: const Text("Settings")),
+      appBar: AppBar(title: const Text("Settings"), centerTitle: true),
       body: StreamBuilder<User?>(
         stream: FirebaseAuth.instance.userChanges(),
         builder: (context, snapshot) {
           final user = snapshot.data;
           final userName = user?.displayName ?? user?.email?.split('@')[0] ?? "User";
+          final ImageProvider? profileImg = _getProfileImage(user);
 
           return SingleChildScrollView(
             padding: const EdgeInsets.all(20.0),
@@ -43,15 +65,11 @@ class SettingsPage extends StatelessWidget {
                     ),
                     child: Row(
                       children: [
-                        // --- UPDATED DYNAMIC ICON LOGIC ---
                         CircleAvatar(
                           radius: 30,
                           backgroundColor: isDark ? Colors.white : Colors.black,
-                          // LOGIC: Check if path exists and is a real file on this phone
-                          backgroundImage: (user?.photoURL != null && File(user!.photoURL!).existsSync())
-                              ? FileImage(File(user.photoURL!)) 
-                              : null,
-                          child: (user?.photoURL == null || !File(user!.photoURL!).existsSync())
+                          backgroundImage: profileImg,
+                          child: profileImg == null
                             ? Icon(Icons.person, color: isDark ? Colors.black : Colors.white, size: 35)
                             : null,
                         ),
@@ -96,7 +114,11 @@ class SettingsPage extends StatelessWidget {
                         Navigator.push(context, MaterialPageRoute(builder: (ctx) => const NotificationPrefsPage()));
                       }),
                       _settingRow(context, "System Settings", Icons.tune_outlined, () {
-                        AppSettings.openAppSettings(type: AppSettingsType.notification);
+                        try {
+                          AppSettings.openAppSettings(type: AppSettingsType.notification);
+                        } catch (e) {
+                          debugPrint("Could not open system settings: $e");
+                        }
                       }, isLast: true),
                     ],
                   ),
@@ -176,10 +198,12 @@ class SettingsPage extends StatelessWidget {
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Cancel")),
           TextButton(
-            onPressed: () {
-              Provider.of<TrackManager>(context, listen: false).clearData();
-              FirebaseAuth.instance.signOut();
-              Navigator.pop(ctx);
+            onPressed: () async {
+              // RELEASE FIX: Clear data before sign out
+              final manager = Provider.of<TrackManager>(context, listen: false);
+              await manager.clearData();
+              await FirebaseAuth.instance.signOut();
+              if (ctx.mounted) Navigator.pop(ctx);
             },
             child: const Text("Log out", style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
           ),

@@ -8,7 +8,6 @@ plugins {
     id("com.google.gms.google-services")
 }
 
-
 val keystoreProperties = Properties()
 val keystorePropertiesFile = rootProject.file("key.properties")
 if (keystorePropertiesFile.exists()) {
@@ -16,24 +15,24 @@ if (keystorePropertiesFile.exists()) {
 }
 
 android {
-    namespace = "com.example.my_app"
-    compileSdk = 36
-    ndkVersion = flutter.ndkVersion
+    // Must match your Firebase console exactly
+    namespace = "com.teamninik.trackyourprogress"
     
+    // Satisfies requirements for shared_preferences, image_picker, etc.
+    compileSdk = 36 
+    ndkVersion = flutter.ndkVersion
 
     signingConfigs {
         create("release") {
-            keyAlias = keystoreProperties["keyAlias"] as String
-            keyPassword = keystoreProperties["keyPassword"] as String
+            keyAlias = keystoreProperties["keyAlias"] as String? ?: ""
+            keyPassword = keystoreProperties["keyPassword"] as String? ?: ""
             storeFile = keystoreProperties["storeFile"]?.let { file(it) }
-            storePassword = keystoreProperties["storePassword"] as String
+            storePassword = keystoreProperties["storePassword"] as String? ?: ""
         }
     }
 
     compileOptions {
-        // ✅ Add this line to fix the 'flutter_local_notifications' error
         isCoreLibraryDesugaringEnabled = true
-        
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
@@ -45,17 +44,26 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.example.my_app"
-        // Ensure minSdk is at least 21 for modern desugaring libraries
-        minSdk = flutter.minSdkVersion
-        targetSdk = 36 // Updated to match your compileSdk
+        applicationId = "com.teamninik.trackyourprogress"
+        // MinSDK 23 is required for many modern PDF and Firebase features
+        minSdk = flutter.minSdkVersion 
+        targetSdk = 35 
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+
+        // RELEASE FIX: Prevents crash if the app has too many methods (Firebase/PDF/Fonts)
+        multiDexEnabled = true
     }
 
     buildTypes {
         release {
             signingConfig = signingConfigs.getByName("release")
+            
+            // Set to false to prevent R8 from accidentally deleting Firebase code
+            isMinifyEnabled = false
+            isShrinkResources = false
+            
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
     }
 }
@@ -64,7 +72,15 @@ flutter {
     source = "../.."
 }
 
-// ✅ Add this block at the very bottom of the file
 dependencies {
+    // Multidex support for Android
+    implementation("androidx.multidex:multidex:2.0.1")
+
+    // Firebase BOM and specific requirements
+    implementation(platform("com.google.firebase:firebase-bom:34.11.0"))
+    implementation("com.google.firebase:firebase-auth")
+    implementation("com.google.firebase:firebase-firestore")
+
+    // Required for older Android versions to handle new Java features
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
 }
