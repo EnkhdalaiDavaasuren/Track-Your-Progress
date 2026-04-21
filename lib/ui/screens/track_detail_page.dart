@@ -19,7 +19,6 @@ class _TrackDetailPageState extends State<TrackDetailPage> {
   @override
   void initState() {
     super.initState();
-    // Initialize to the start date or today
     final initialDate = widget.track.startDate ?? DateTime.now();
     displayMonth = DateTime(initialDate.year, initialDate.month, 1);
   }
@@ -30,16 +29,17 @@ class _TrackDetailPageState extends State<TrackDetailPage> {
 
     return Consumer<TrackManager>(
       builder: (context, manager, child) {
-        // RELEASE FIX: Robust track lookup to prevent "State Desync" crashes
         final track = manager.allTracks.firstWhere(
           (t) => t.id == widget.track.id,
           orElse: () => widget.track,
         );
 
-        // Calendar Math
         final int daysInMonth = DateTime(displayMonth.year, displayMonth.month + 1, 0).day;
-        // weekday: 1 (Mon) to 7 (Sun). Sunday becomes 0 for our grid.
         final int firstDayOffset = DateTime(displayMonth.year, displayMonth.month, 1).weekday % 7;
+
+        // Current date for comparison
+        final now = DateTime.now();
+        final today = DateTime(now.year, now.month, now.day);
 
         return Scaffold(
           appBar: AppBar(
@@ -62,7 +62,6 @@ class _TrackDetailPageState extends State<TrackDetailPage> {
           ),
           body: Column(
             children: [
-              // Goal Question Button
               Padding(
                 padding: const EdgeInsets.all(16.0),
                 child: OutlinedButton(
@@ -79,7 +78,6 @@ class _TrackDetailPageState extends State<TrackDetailPage> {
                 ),
               ),
 
-              // Calendar Header
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                 child: Row(
@@ -101,7 +99,6 @@ class _TrackDetailPageState extends State<TrackDetailPage> {
                 ),
               ),
 
-              // --- DAY HEADERS ---
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 child: Row(
@@ -112,7 +109,6 @@ class _TrackDetailPageState extends State<TrackDetailPage> {
                 ),
               ),
 
-              // THE GRID
               Expanded(
                 child: GridView.builder(
                   padding: const EdgeInsets.all(20),
@@ -126,17 +122,18 @@ class _TrackDetailPageState extends State<TrackDetailPage> {
                     if (index < firstDayOffset) return const SizedBox.shrink();
 
                     int day = index - firstDayOffset + 1;
-                    // RELEASE FIX: Normalized current cell date
-                    DateTime date = DateTime(displayMonth.year, displayMonth.month, day);
-                    String dateKey = DateFormat('yyyy-MM-dd').format(date);
+                    DateTime cellDate = DateTime(displayMonth.year, displayMonth.month, day);
+                    String dateKey = DateFormat('yyyy-MM-dd').format(cellDate);
                     
                     bool isInRange = false;
                     if (track.startDate != null && track.endDate != null) {
                       DateTime s = DateTime(track.startDate!.year, track.startDate!.month, track.startDate!.day);
                       DateTime e = DateTime(track.endDate!.year, track.endDate!.month, track.endDate!.day);
-                      isInRange = !date.isBefore(s) && !date.isAfter(e);
+                      isInRange = !cellDate.isBefore(s) && !cellDate.isAfter(e);
                     }
 
+                    // --- THE YELLOW LOGIC ---
+                    bool isPast = cellDate.isBefore(today);
                     DayStatus status = track.dailyProgress[dateKey] ?? DayStatus.notSet;
 
                     return GestureDetector(
@@ -144,7 +141,7 @@ class _TrackDetailPageState extends State<TrackDetailPage> {
                       child: Container(
                         decoration: BoxDecoration(
                           shape: BoxShape.circle, 
-                          color: isInRange ? _getColor(status) : Colors.transparent, 
+                          color: isInRange ? _getColor(status, isPast) : Colors.transparent, 
                           border: isInRange ? null : Border.all(color: borderColor.withValues(alpha: 0.1))
                         ),
                         child: Center(
@@ -168,16 +165,23 @@ class _TrackDetailPageState extends State<TrackDetailPage> {
     );
   }
 
-  Color _getColor(DayStatus s) {
+  // UPDATED COLOR HELPER
+  Color _getColor(DayStatus s, bool isPast) {
     if (s == DayStatus.yes) return Colors.green.withValues(alpha: 0.7);
     if (s == DayStatus.no) return Colors.red.withValues(alpha: 0.7);
+    
+    // If NOT SET (Grey) and it is in the PAST, return YELLOW/AMBER
+    if (s == DayStatus.notSet && isPast) {
+      return Colors.amber.withValues(alpha: 0.8);
+    }
+
+    // Default for future or today: Grey
     return Colors.grey.withValues(alpha: 0.4);
   }
 
   void _showProgressDialog(BuildContext context, Track track, String dateKey) {
     DayStatus currentStatus = track.dailyProgress[dateKey] ?? DayStatus.notSet;
 
-    // Logic: In the Done Page, you can ONLY edit Grey circles
     if (track.isDone && currentStatus != DayStatus.notSet) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Finished days are locked and cannot be changed."))
