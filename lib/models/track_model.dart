@@ -1,5 +1,4 @@
 enum DayStatus { notSet, no, yes }
-int? reminderHour;
 
 
 class Track {

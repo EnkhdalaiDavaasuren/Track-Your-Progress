@@ -1,12 +1,55 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart'; 
 import 'package:provider/provider.dart';
+import '../../../models/track_model.dart';
 import '../../../services/track_manager.dart';
 import '../setup_range_page.dart';
 import '../track_detail_page.dart';
 
 class ProgressPage extends StatelessWidget {
   const ProgressPage({super.key});
+
+  // THE FIX: Theme-aware Time Picker
+  Future<void> _selectReminderTime(BuildContext context, TrackManager manager, Track track) async {
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
+    
+    final TimeOfDay? picked = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay(
+        hour: track.reminderHour ?? 9, 
+        minute: track.reminderMinute ?? 0
+      ),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            // Logic: Flip the picker theme based on app theme
+            colorScheme: isDark 
+              ? const ColorScheme.dark(
+                  primary: Color(0xFFD0BCFF), // Light purple
+                  onPrimary: Colors.black,
+                  surface: Color(0xFF2C2C2C),
+                  onSurface: Colors.white,
+                )
+              : const ColorScheme.light(
+                  primary: Color(0xFF6750A4), // Deep purple
+                  onPrimary: Colors.white,
+                  onSurface: Colors.black,
+                ),
+            textButtonTheme: TextButtonThemeData(
+              style: TextButton.styleFrom(
+                foregroundColor: isDark ? const Color(0xFFD0BCFF) : const Color(0xFF6750A4),
+              ),
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    if (picked != null) {
+      manager.updateReminderTime(track.id, picked.hour, picked.minute);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -38,9 +81,9 @@ class ProgressPage extends StatelessWidget {
                     itemCount: tracks.length,
                     itemBuilder: (context, index) {
                       final track = tracks[index];
-                      // RELEASE FIX: Safer date check (ensure both exist)
                       bool hasDates = track.startDate != null && track.endDate != null;
                       bool isNotSet = track.startDate == null;
+                      bool hasTime = track.reminderHour != null;
 
                       return Container(
                         margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -68,39 +111,39 @@ class ProgressPage extends StatelessWidget {
                                 
                                 Row(
                                   children: [
-                                    // 1. NOTIFICATION DROPDOWN
+                                    // 1. CLOCK PICKER ICON
+                                    IconButton(
+                                      icon: Icon(
+                                        Icons.access_time, 
+                                        color: hasTime 
+                                          ? (isDark ? Colors.orangeAccent : Colors.orange) 
+                                          : borderColor.withValues(alpha: 0.3), 
+                                        size: 22
+                                      ),
+                                      onPressed: () => _selectReminderTime(context, manager, track),
+                                    ),
+
+                                    // 2. NOTIFICATION FREQUENCY
                                     PopupMenuButton<String>(
                                       icon: Icon(
                                         Icons.notifications_active_outlined, 
-                                        color: isDark ? Colors.deepPurpleAccent : Colors.deepPurple, 
+                                        color: isDark ? const Color(0xFFD0BCFF) : const Color(0xFF6750A4), 
                                         size: 24,
                                       ),
-                                      tooltip: "Reminder Frequency",
                                       onSelected: (String value) {
                                         manager.updateFrequency(track.id, value);
-                                        // RELEASE FIX: Ensure context is still valid before showing SnackBar
-                                        if (context.mounted) {
-                                          ScaffoldMessenger.of(context).hideCurrentSnackBar();
-                                          ScaffoldMessenger.of(context).showSnackBar(
-                                            SnackBar(content: Text("Reminder set to: $value"))
-                                          );
-                                        }
                                       },
                                       itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
                                         const PopupMenuItem(value: "Every day", child: Text("Every day")),
-                                        const PopupMenuItem(value: "Every 3 days", child: Text("Every 3 days")),
-                                        const PopupMenuItem(value: "Every 5 days", child: Text("Every 5 days")),
                                         const PopupMenuItem(value: "Every week", child: Text("Every week")),
-                                        const PopupMenuItem(value: "Every month", child: Text("Every month")),
-                                        const PopupMenuItem(value: "Every year", child: Text("Every year")),
                                         const PopupMenuDivider(),
                                         const PopupMenuItem(value: "None", child: Text("Turn off")),
                                       ],
                                     ),
                                     
-                                    // 2. DELETE ICON
+                                    // 3. DELETE
                                     IconButton(
-                                      icon: const Icon(Icons.delete_outline, color: Colors.red),
+                                      icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
                                       onPressed: () => manager.deleteTrack(track.id),
                                     ),
                                   ],
@@ -108,11 +151,30 @@ class ProgressPage extends StatelessWidget {
                               ],
                             ),
                             
+                            // DISPLAY THE REMINDER TIME
+                            if (hasTime)
+                              Padding(
+                                padding: const EdgeInsets.only(bottom: 6.0),
+                                child: Row(
+                                  children: [
+                                    Icon(Icons.alarm, size: 14, color: isDark ? Colors.orangeAccent : Colors.orange),
+                                    const SizedBox(width: 5),
+                                    Text(
+                                      "Daily Reminder: ${track.reminderHour.toString().padLeft(2, '0')}:${track.reminderMinute.toString().padLeft(2, '0')}",
+                                      style: TextStyle(
+                                        color: isDark ? Colors.orangeAccent : Colors.orange, 
+                                        fontSize: 12, 
+                                        fontWeight: FontWeight.bold
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+
                             // DATE RANGE DISPLAY
-                            // RELEASE FIX: Only try to format if we are 100% sure dates aren't null
                             if (hasDates)
                               Padding(
-                                padding: const EdgeInsets.only(top: 0.0, bottom: 8.0),
+                                padding: const EdgeInsets.only(bottom: 8.0),
                                 child: Text(
                                   "${DateFormat('yyyy/MM/dd').format(track.startDate!)} - ${DateFormat('yyyy/MM/dd').format(track.endDate!)}",
                                   style: TextStyle(

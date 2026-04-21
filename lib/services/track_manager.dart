@@ -12,21 +12,16 @@ class TrackManager extends ChangeNotifier {
   final StorageService _storage = StorageService();
   List<Track> _tracks = [];
 
-  // --- GETTERS (The logic filters for your UI) ---
+  // --- GETTERS ---
 
-  // Master list for Detail Page search (Prevents Crashes)
   List<Track> get allTracks => _tracks;
 
-  // LOGIC FIX: 'ongoing' now includes both 'Not Set' and 'In Process'
-  // It only hides a track if it is officially Done.
   List<Track> get ongoingTracks => 
       _tracks.where((t) => !t.isDone).toList();
 
-  // Show only finished/expired tracks
   List<Track> get expiredTracks => 
       _tracks.where((t) => t.isDone).take(10).toList();
 
-  // Dashboard shows top 3 that actually have a schedule set
   List<Track> get dashboardTracks => 
       _tracks.where((t) => !t.isDone && t.startDate != null).take(3).toList();
 
@@ -42,7 +37,7 @@ class TrackManager extends ChangeNotifier {
 
   // --- CORE ACTIONS ---
 
-  // 1. ADD TRACK: Starts as (Not Set)
+  // 1. ADD TRACK
   Future<void> addTrack(String name) async {
     final newTrack = Track(
       id: const Uuid().v4(),
@@ -56,16 +51,14 @@ class TrackManager extends ChangeNotifier {
     await _saveAll(newTrack);
   }
 
-  // 2. SET RANGE: From SetupRangePage
+  // 2. SET RANGE
   Future<void> setSchedule(String id, DateTime start, DateTime end) async {
     var index = _tracks.indexWhere((t) => t.id == id);
     if (index == -1) return;
 
-    // 1. Set the dates
     _tracks[index].startDate = start;
     _tracks[index].endDate = end;
 
-    // 2. BUILD THE DATA FIRST (Critical)
     _tracks[index].dailyProgress.clear();
     int daysInRange = end.difference(start).inDays;
     
@@ -74,20 +67,17 @@ class TrackManager extends ChangeNotifier {
       _tracks[index].dailyProgress[dateKey] = DayStatus.notSet;
     }
 
-    // 3. NOW NOTIFY THE UI
     notifyListeners();
 
-    // 4. SAVE AND SCHEDULE NOTIFICATIONS
     try {
       await _saveAll(_tracks[index]);
       await NotificationService.scheduleExpirationAlert(id, _tracks[index].name, end);
     } catch (e) {
-      print("Notification or Save Error: $e");
-      // App keeps running even if notification fails
+      debugPrint("Notification/Save Error: $e");
     }
   }
 
-  // 3. UPDATE DAY STATUS: From TrackDetailPage
+  // 3. UPDATE DAY STATUS
   Future<void> updateDayStatus(String trackId, String dateKey, DayStatus status) async {
     int index = _tracks.indexWhere((t) => t.id == trackId);
     if (index == -1) return;
@@ -97,15 +87,47 @@ class TrackManager extends ChangeNotifier {
     await _saveAll(_tracks[index]);
   }
 
-  // 4. DELETE
+  // 4. --- THE NEW CLOCK LOGIC ---
+  Future<void> updateReminderTime(String id, int hour, int minute) async {
+    int index = _tracks.indexWhere((t) => t.id == id);
+    if (index != -1) {
+      _tracks[index].reminderHour = hour;
+      _tracks[index].reminderMinute = minute;
+      
+      notifyListeners();
+      await _saveAll(_tracks[index]);
+
+      // Sets the repeating alarm for the specific time chosen
+      await NotificationService.scheduleDailyTimeNotification(
+        id, 
+        _tracks[index].name, 
+        hour, 
+        minute
+      );
+    }
+  }
+
+  // 5. UPDATE FREQUENCY (Every week, None, etc.)
+  Future<void> updateFrequency(String id, String freq) async {
+    int index = _tracks.indexWhere((t) => t.id == id);
+    if (index != -1) {
+      _tracks[index].reminderFrequency = freq;
+      notifyListeners();
+      await _saveAll(_tracks[index]);
+      await NotificationService.scheduleNotification(id, _tracks[index].name, freq);
+    }
+  }
+
+  // 6. DELETE
   Future<void> deleteTrack(String id) async {
     _tracks.removeWhere((t) => t.id == id);
     notifyListeners();
     await _storage.saveTracks(_tracks.map((t) => t.toJson()).toList());
     await _firebase.removeTrack(id);
+    await NotificationService.cancelAllForTrack(id);
   }
 
-  // 5. RENAME & CHECK TEXT
+  // 7. RENAME & CHECK TEXT
   Future<void> renameTrack(String id, String newName) async {
     int index = _tracks.indexWhere((t) => t.id == id);
     if (index != -1) {
@@ -124,19 +146,8 @@ class TrackManager extends ChangeNotifier {
     }
   }
 
-  // 6. NOTIFICATION FREQUENCY
-  Future<void> updateFrequency(String id, String freq) async {
-    int index = _tracks.indexWhere((t) => t.id == id);
-    if (index != -1) {
-      _tracks[index].reminderFrequency = freq;
-      notifyListeners();
-      await _saveAll(_tracks[index]);
-      await NotificationService.scheduleNotification(id, _tracks[index].name, freq);
-    }
-  }
 
-
-  // --- DATABASE SYNC ---
+  // --- SYNC ---
 
   Future<void> _saveAll(Track track) async {
     await _storage.saveTracks(_tracks.map((t) => t.toJson()).toList());
@@ -146,7 +157,6 @@ class TrackManager extends ChangeNotifier {
   Future<void> loadFromFirebase() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return; 
-
     try {
       List<Track> cloudTracks = await _firebase.fetchTracks();
       if (cloudTracks.isNotEmpty) {
@@ -155,7 +165,7 @@ class TrackManager extends ChangeNotifier {
         notifyListeners();
       }
     } catch (e) {
-      print("Sync Error: $e");
+      debugPrint("Sync Error: $e");
     }
   }
 
