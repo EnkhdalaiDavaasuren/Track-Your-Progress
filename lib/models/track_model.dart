@@ -1,4 +1,6 @@
 enum DayStatus { notSet, no, yes }
+int? reminderHour;
+
 
 class Track {
   String id;
@@ -8,6 +10,8 @@ class Track {
   DateTime? endDate;
   String reminderFrequency;
   Map<String, DayStatus> dailyProgress;
+  int? reminderHour;
+  int? reminderMinute;
 
   Track({
     required this.id,
@@ -15,6 +19,8 @@ class Track {
     this.checkText = "",
     this.startDate,
     this.endDate,
+    this.reminderHour,
+    this.reminderMinute,
     this.reminderFrequency = "None",
     required this.dailyProgress,
   });
@@ -41,6 +47,8 @@ class Track {
       'checkText': checkText,
       'startDate': startDate?.toIso8601String(),
       'endDate': endDate?.toIso8601String(),
+      'reminderHour': reminderHour,
+      'reminderMinute': reminderMinute,
       'reminderFrequency': reminderFrequency,
       'dailyProgress': dailyProgress.map((k, v) => MapEntry(k, v.index)),
     };
@@ -53,6 +61,8 @@ class Track {
       checkText: map['checkText'] ?? "",
       startDate: map['startDate'] != null ? DateTime.tryParse(map['startDate']) : null,
       endDate: map['endDate'] != null ? DateTime.tryParse(map['endDate']) : null,
+      reminderHour: map['reminderHour'],
+      reminderMinute: map['reminderMinute'],
       reminderFrequency: map['reminderFrequency'] ?? "None",
       dailyProgress: (map['dailyProgress'] as Map? ?? {}).map(
         (k, v) {
